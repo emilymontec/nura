@@ -15,7 +15,7 @@ def test_endpoint(request):
     """Health check endpoint."""
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
 
-from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations
+from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
 from analytics.insights import generate_insights
@@ -39,6 +39,10 @@ def analyze_endpoint(request):
             trends = analyze_numeric_trends(df)
             correlations = compute_correlations(df)
             insights = generate_insights(summary, trends, health, correlations)
+            preview = get_preview(df)
+            charts = get_chart_data(df)
+            industry = detect_industry(df)
+            business_context = get_business_context(df, industry)
             
             context = {
                 "file_name": file.name,
@@ -47,22 +51,36 @@ def analyze_endpoint(request):
                 "health": health,
                 "trends": trends,
                 "correlations": correlations,
-                "insights": insights
+                "insights": insights,
+                "preview": preview,
+                "charts": charts,
+                "industry": industry,
+                "business_context": business_context
             }
             safe_context = make_json_safe(context)
             memory.store_dataset_context(session_id, safe_context)
             
-            # Guardar en el historial de chat la carga del archivo para evitar sesiones vacias que no se visualizan bien
+            # Generar reporte de IA opcionalmente
+            ai_report = None
+            try:
+                ai_report = generate_ai_report(safe_context)
+                safe_context["ai_report"] = ai_report
+            except:
+                pass
+
+            # Guardar en el historial de chat la carga del archivo
             memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
             
             score = safe_context['health'].get('health_score')
             score_str = f"{score:.2f}" if score is not None else "0.00"
-            bot_msg1 = f"Analisis completado.\nArchivo: {safe_context['file_name']}\nRegistros: {safe_context['summary']['rows']}\nColumnas: {safe_context['summary']['columns']}\nRiesgo: {safe_context['health']['risk_level']}\nSalud: {score_str}"
+            bot_msg1 = f"Analisis completado.\nArchivo: {safe_context['file_name']}\nSector detectado: {industry}\nRegistros: {safe_context['summary']['rows']}\nColumnas: {safe_context['summary']['columns']}\nRiesgo: {safe_context['health']['risk_level']}\nSalud: {score_str}"
             memory.add_message(session_id, "assistant", bot_msg1)
             
-            if insights:
+            if ai_report:
+                memory.add_message(session_id, "assistant", f"### Informe Ejecutivo de NURA ({industry})\n\n{ai_report}")
+            elif insights:
                 insights_text = "\n- ".join(insights)
-                bot_msg2 = f"Insights iniciales:\n- {insights_text}"
+                bot_msg2 = f"Insights iniciales para {industry}:\n- {insights_text}"
                 memory.add_message(session_id, "assistant", bot_msg2)
             
             return JsonResponse(safe_context)

@@ -93,7 +93,8 @@ def generate_ai_report(context_data: dict) -> str:
         summary=context_data.get('summary', {}),
         health=context_data.get('health', {}),
         trends=context_data.get('trends', {}),
-        insights=context_data.get('insights', [])
+        insights=context_data.get('insights', []),
+        industry=context_data.get('industry', 'General / Negocios')
     )
     
     try:
@@ -113,9 +114,13 @@ def _summarize_context(context: dict) -> str:
         
     summary = context.get("summary", {})
     insights = context.get("insights", [])
+    industry = context.get("industry", "General / Negocios")
+    business_context = context.get("business_context", "")
     
     lines = [
         f"Archivo: {context.get('file_name')} ({summary.get('rows', 0)} filas, {summary.get('columns', 0)} cols)",
+        f"Sector Detectado: {industry}",
+        f"Contexto Empresarial: {business_context}",
         f"Salud: {context.get('health', {}).get('health_score', 0)}/100"
     ]
     if insights:
@@ -156,6 +161,7 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
     try:
         short_context = _summarize_context(context)
         has_dataset = bool(context and context.get("file_name"))
+        industry = context.get("industry", "General / Negocios")
 
         if not has_dataset or len(question.split()) < 3:
             selected_key = "chat"
@@ -169,16 +175,17 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
                 def run_specialist_callback(system_message, prompt, temperature=0.25):
                     return _run_completion(system_message, prompt, temperature, tier="standard")
                     
-                return run_specialist_agent(agent, question, short_context, history, run_specialist_callback)
+                return run_specialist_agent(agent, question, short_context, history, industry, run_specialist_callback)
                 
         prompt = CHAT_ANALYST_PROMPT.format(
             context=short_context,
             history=history,
             question=question,
+            industry=industry
         )
         return _run_completion(
             system_message=(
-                "Eres NURA, una asistente de analitica de datos empresariales. "
+                f"Eres NURA, una asistente de analitica de datos empresariales especializada en {industry}. "
                 "Respondes siempre en espanol, con claridad, precision y tono profesional."
             ),
             prompt=prompt,

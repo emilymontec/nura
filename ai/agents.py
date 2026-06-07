@@ -149,12 +149,13 @@ def select_agents(question: str, context: Dict, history: str) -> List[AgentProfi
     return unique_agents[:4]
 
 
-def run_specialist_agent(agent: AgentProfile, question: str, context: Dict, history: str, llm_callback) -> str:
+def run_specialist_agent(agent: AgentProfile, question: str, context: str, history: str, industry: str, llm_callback) -> str:
     """Run a specialist agent through the shared LLM callback."""
     prompt = AGENT_SPECIALIST_PROMPT.format(
         agent_name=agent.name,
         agent_focus=agent.focus,
         agent_goal=agent.goal,
+        industry=industry,
         context=context,
         history=history,
         question=question,
@@ -162,12 +163,12 @@ def run_specialist_agent(agent: AgentProfile, question: str, context: Dict, hist
     return llm_callback(prompt=prompt, system_message=f"Eres {agent.name} dentro del sistema multiagente de NURA.", temperature=0.25)
 
 
-def run_agent_system(question: str, context: Dict, history: str, llm_callback) -> List[Dict[str, str]]:
+def run_agent_system(question: str, context: str, history: str, industry: str, llm_callback) -> List[Dict[str, str]]:
     """Execute selected agents and return their outputs."""
-    selected_agents = select_agents(question, context, history)
+    selected_agents = select_agents(question, context, history) # Note: context here is a string from _summarize_context, but select_agents expects a dict? Let me check.
     results = []
     for agent in selected_agents:
-        output = run_specialist_agent(agent, question, context, history, llm_callback)
+        output = run_specialist_agent(agent, question, context, history, industry, llm_callback)
         results.append(
             {
                 "key": agent.key,

@@ -25,31 +25,91 @@ def _infer_semantic_type(col_name: str, dtype_str: str) -> str:
     """Infer the business semantic type of a column based on its name and dtype."""
     col_lower = col_name.lower()
     
-    # Financial / Monetary
-    if any(word in col_lower for word in ["precio", "price", "costo", "cost", "ventas", "sales", "ingreso", "revenue", "monto", "amount", "total", "descuento", "discount", "margen", "margin"]):
-        return "Financiero/Monetario"
+    # Financial / Monetary / Sales
+    if any(word in col_lower for word in ["precio", "price", "costo", "cost", "monto", "amount", "total", "subtotal", "tax", "impuesto", "profit", "ganancia", "margen", "margin", "ingreso", "revenue"]):
+        return "Financiero"
+    
+    # Sales specific
+    if any(word in col_lower for word in ["ventas", "sales", "pedido", "order", "invoice", "factura", "transaccion", "transaction", "compra", "purchase"]):
+        return "Ventas"
     
     # Temporal
-    if any(word in col_lower for word in ["fecha", "date", "tiempo", "time", "año", "year", "mes", "month", "dia", "day", "hora", "hour"]):
+    if any(word in col_lower for word in ["fecha", "date", "tiempo", "time", "año", "year", "mes", "month", "dia", "day", "hora", "hour", "created", "updated", "timestamp"]):
         return "Temporal"
     
     # Identifiers
-    if any(word in col_lower for word in ["id", "codigo", "code", "sku", "uuid"]):
+    if any(word in col_lower for word in ["id", "codigo", "code", "sku", "uuid", "pk", "fk", "key", "llave"]):
         return "Identificador"
         
+    # Customers / Users
+    if any(word in col_lower for word in ["cliente", "client", "customer", "usuario", "user", "lead", "prospecto", "contacto", "email", "correo", "nombre", "name", "apellido", "phone", "telefono"]):
+        return "Clientes"
+        
     # Categorical/Business Dimensions
-    if any(word in col_lower for word in ["categoria", "category", "tipo", "type", "estado", "status", "cliente", "client", "customer", "producto", "product", "region", "pais", "country", "ciudad", "city", "canal", "channel"]):
-        return "Dimension Categórica"
+    if any(word in col_lower for word in ["categoria", "category", "tipo", "type", "estado", "status", "producto", "product", "region", "pais", "country", "ciudad", "city", "canal", "channel", "brand", "marca", "modelo", "model"]):
+        return "Dimensión Categórica"
         
     # Quantities / Metrics
-    if any(word in col_lower for word in ["cantidad", "quantity", "qty", "volumen", "volume", "peso", "weight", "stock", "inventario"]):
-        return "Metrica/Cantidad"
+    if any(word in col_lower for word in ["cantidad", "quantity", "qty", "volumen", "volume", "peso", "weight", "stock", "inventario", "units", "unidades"]):
+        return "Métrica/Cantidad"
+
+    # Risks / Anomalies (Signals)
+    if any(word in col_lower for word in ["riesgo", "risk", "churn", "fraude", "fraud", "error", "falla", "failure", "alert", "alerta", "warning", "advertencia", "atraso", "delay", "mora"]):
+        return "Riesgo"
         
     if "object" in dtype_str or "str" in dtype_str:
-        return "Texto/Categoria"
+        return "Texto/Categoría"
     elif "int" in dtype_str or "float" in dtype_str:
-        return "Numerico Generico"
+        return "Numérico Genérico"
     return "Desconocido"
+
+def detect_industry(df: pd.DataFrame) -> str:
+    """Detect the industry of the dataset based on column names."""
+    cols = [c.lower() for c in df.columns]
+    
+    industries = {
+        "Ecommerce": ["order", "pedido", "cart", "carrito", "sku", "shipping", "envio", "delivery", "product", "producto", "variant", "variante", "stock", "inventory", "tienda", "store"],
+        "SaaS": ["subscription", "suscripcion", "plan", "mrr", "arr", "churn", "trial", "prueba", "user_id", "active", "feature", "upgrade", "license", "licencia", "recurring", "recurrente"],
+        "Finanzas": ["transaction", "transaccion", "balance", "account", "cuenta", "credit", "debito", "debit", "loan", "prestamo", "interest", "interes", "asset", "activo", "liability", "pasivo", "investment", "inversion"],
+        "Marketing": ["campaign", "campaña", "click", "impression", "impresion", "ctr", "cpc", "conversion", "lead", "source", "fuente", "medium", "medio", "ad_group", "keyword", "reach", "alcance"],
+        "Recursos Humanos": ["employee", "empleado", "payroll", "nomina", "salary", "salario", "department", "departamento", "hiring", "contratacion", "turnover", "performance", "desempeño", "vacation", "vacaciones", "bonus", "bono"]
+    }
+    
+    scores = {industry: 0 for industry in industries}
+    for industry, keywords in industries.items():
+        for keyword in keywords:
+            if any(keyword in col for col in cols):
+                scores[industry] += 2 # Match in column name
+            # Also check if industry name itself is in columns
+            if industry.lower() in cols:
+                scores[industry] += 5
+                
+    # Get industry with highest score
+    best_industry = max(scores, key=scores.get)
+    if scores[best_industry] > 0:
+        return best_industry
+    return "General / Negocios"
+
+def get_business_context(df: pd.DataFrame, industry: str) -> str:
+    """Generate a brief business context description based on detected columns."""
+    cols_info = column_info(df)
+    semantic_counts = {}
+    for col, info in cols_info.items():
+        stype = info["semantic_type"]
+        semantic_counts[stype] = semantic_counts.get(stype, 0) + 1
+    
+    context_parts = [f"Este es un dataset de tipo {industry}."]
+    
+    if semantic_counts.get("Financiero", 0) > 0 or semantic_counts.get("Ventas", 0) > 0:
+        context_parts.append("Contiene información financiera y de transacciones comerciales.")
+    if semantic_counts.get("Clientes", 0) > 0:
+        context_parts.append("Incluye datos detallados de clientes o usuarios.")
+    if semantic_counts.get("Riesgo", 0) > 0:
+        context_parts.append("Se detectaron indicadores de riesgo o señales de alerta.")
+    if semantic_counts.get("Temporal", 0) > 0:
+        context_parts.append("La información tiene un componente temporal para análisis de tendencias.")
+        
+    return " ".join(context_parts)
 
 def column_info(df: pd.DataFrame) -> Dict[str, Any]:
     """Return column-level information including business semantic type."""
@@ -111,11 +171,53 @@ def dataset_summary(df: pd.DataFrame) -> Dict[str, Any]:
         "duplicate_rows": duplicate_rows,
     }
 
+def get_preview(df: pd.DataFrame, n: int = 10) -> List[Dict[str, Any]]:
+    """Return the first n rows of the dataset as a list of dicts."""
+    # Handle NaN values for JSON serialization
+    return df.head(n).replace({np.nan: None}).to_dict(orient="records")
+
+def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
+    """Detect suitable columns for charts and return their data.
+    - Categorical: Top 5 categories for bar chart.
+    - Numeric: Values for a histogram or line chart.
+    """
+    charts = []
+    
+    # Numeric distributions
+    numeric_cols = df.select_dtypes(include=[np.number]).columns[:3] # Limit to 3
+    for col in numeric_cols:
+        series = df[col].dropna()
+        if not series.empty:
+            charts.append({
+                "type": "distribution",
+                "column": col,
+                "data": series.tolist()[:100] # Limit data points
+            })
+            
+    # Categorical counts
+    cat_cols = df.select_dtypes(include=["object", "category"]).columns[:3]
+    for col in cat_cols:
+        counts = df[col].value_counts().head(5)
+        if not counts.empty:
+            charts.append({
+                "type": "categorical",
+                "column": col,
+                "labels": counts.index.tolist(),
+                "values": counts.values.tolist()
+            })
+            
+    return charts
+
 def analyze_csv(file_path: str) -> Dict[str, Any]:
     """Convenient wrapper that loads a CSV and returns a full analysis.
     """
     df = load_csv(file_path)
+    industry = detect_industry(df)
     return {
         "summary": dataset_summary(df),
         "columns": column_info(df),
+        "preview": get_preview(df),
+        "charts": get_chart_data(df),
+        "industry": industry,
+        "business_context": get_business_context(df, industry)
     }

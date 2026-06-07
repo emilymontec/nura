@@ -459,6 +459,16 @@ function clearAnalysis() {
         insightsContainer.style.display = "none";
     }
 
+    const previewContainer = document.getElementById("preview-container");
+    if (previewContainer) {
+        previewContainer.style.display = "none";
+    }
+
+    const chartsContainer = document.getElementById("charts-container");
+    if (chartsContainer) {
+        chartsContainer.style.display = "none";
+    }
+
     // Clear history or update
     // renderChatHistory();
 }
@@ -477,6 +487,120 @@ function renderInsights(insights) {
     container.innerHTML = insights
         .map((insight) => `<article class="insight-item">${escapeHtml(insight)}</article>`)
         .join("");
+}
+
+function renderPreview(preview) {
+    const container = document.getElementById("dataset-preview-table");
+    const section = document.getElementById("preview-container");
+    if (!container || !section) return;
+
+    if (!preview || !preview.length) {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    const columns = Object.keys(preview[0]);
+    const headerHtml = columns.map(col => `<th>${escapeHtml(col)}</th>`).join("");
+    const rowsHtml = preview.map(row => {
+        const cells = columns.map(col => `<td>${escapeHtml(String(row[col] ?? ""))}</td>`).join("");
+        return `<tr>${cells}</tr>`;
+    }).join("");
+
+    container.innerHTML = `
+        <table class="trend-table">
+            <thead><tr>${headerHtml}</tr></thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+}
+
+let activeCharts = [];
+
+function renderCharts(charts) {
+    const container = document.getElementById("charts-list");
+    const section = document.getElementById("charts-container");
+    if (!container || !section) return;
+
+    // Destroy previous charts
+    activeCharts.forEach(chart => chart.destroy());
+    activeCharts = [];
+
+    if (!charts || !charts.length) {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    container.innerHTML = "";
+
+    charts.forEach((chartData, index) => {
+        const chartId = `chart-${index}`;
+        const card = document.createElement("div");
+        card.className = "chart-card";
+        card.innerHTML = `
+            <h4>${escapeHtml(chartData.column)}</h4>
+            <div class="chart-canvas-wrapper">
+                <canvas id="${chartId}"></canvas>
+            </div>
+        `;
+        container.appendChild(card);
+
+        const ctx = document.getElementById(chartId).getContext("2d");
+        let chart;
+
+        if (chartData.type === "categorical") {
+            chart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: "Frecuencia",
+                        data: chartData.values,
+                        backgroundColor: "rgba(0, 242, 254, 0.4)",
+                        borderColor: "#00f2fe",
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.05)" } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        } else if (chartData.type === "distribution") {
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: chartData.data.map((_, i) => i),
+                    datasets: [{
+                        label: "Valores",
+                        data: chartData.data,
+                        borderColor: "#fa709a",
+                        backgroundColor: "rgba(250, 112, 154, 0.1)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: "rgba(255,255,255,0.05)" } },
+                        x: { display: false }
+                    }
+                }
+            });
+        }
+
+        if (chart) activeCharts.push(chart);
+    });
 }
 
 function renderTrends(trends) {
@@ -575,6 +699,10 @@ function renderAnalysis(data) {
     }
 
     renderInsights(data.insights);
+    renderPreview(data.preview);
+    renderCharts(data.charts);
+    renderTrends(data.trends);
+
     // Fetch history or update it to reflect the active file context
     renderChatHistory();
 }
