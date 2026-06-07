@@ -18,7 +18,7 @@ def test_endpoint(request):
 from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
-from analytics.insights import generate_insights
+from analytics.insights import generate_insights, generate_insight_feed
 from analytics.utils import make_json_safe
 
 @csrf_exempt
@@ -39,6 +39,7 @@ def analyze_endpoint(request):
             trends = analyze_numeric_trends(df)
             correlations = compute_correlations(df)
             insights = generate_insights(summary, trends, health, correlations, critical_variables)
+            insight_feed = generate_insight_feed(summary, trends, health, correlations, critical_variables)
             preview = get_preview(df)
             charts = get_chart_data(df)
             industry = detect_industry(df)
@@ -53,6 +54,7 @@ def analyze_endpoint(request):
                 "trends": trends,
                 "correlations": correlations,
                 "insights": insights,
+                "insight_feed": insight_feed,
                 "preview": preview,
                 "charts": charts,
                 "industry": industry,
@@ -80,6 +82,15 @@ def analyze_endpoint(request):
             
             if ai_report:
                 memory.add_message(session_id, "assistant", f"### Informe Ejecutivo de NURA ({industry})\n\n{ai_report}")
+            
+            if insight_feed:
+                feed_items = []
+                for item in insight_feed:
+                    icon = "🔴" if item['color'] == 'red' else ("🟢" if item['color'] == 'green' else "🟡")
+                    feed_items.append(f"{icon} **{item['category']}**: {item['message']}")
+                
+                feed_text = "\n".join(feed_items)
+                memory.add_message(session_id, "assistant", f"### 📱 Insight Feed (Proactivo)\n{feed_text}")
             elif insights:
                 insights_text = "\n- ".join(insights)
                 bot_msg2 = f"Insights iniciales para {industry}:\n- {insights_text}"

@@ -26,6 +26,72 @@ def explain_importance(correlations: List[Dict[str, Any]], critical_vars: List[D
             
     return explanations
 
+def generate_insight_feed(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Generate a structured feed of proactive insights with business categorization and colors."""
+    feed = []
+    
+    # 1. ROJO: Riesgos y Anomalías
+    score = health.get("health_score", 0)
+    if score < 60:
+        feed.append({
+            "category": "Riesgo detectado",
+            "type": "risk",
+            "color": "red",
+            "message": f"Calidad de datos crítica ({score}/100). Se detectaron inconsistencias que podrían afectar la toma de decisiones."
+        })
+        
+    missing = summary.get("total_missing", 0)
+    if missing > (summary.get("rows", 0) * summary.get("columns", 0) * 0.1): # More than 10% missing
+        feed.append({
+            "category": "Riesgo detectado",
+            "type": "risk",
+            "color": "red",
+            "message": f"Alta tasa de datos faltantes ({missing} celdas vacías). El análisis podría estar sesgado."
+        })
+
+    # 2. VERDE: Oportunidades
+    if correlations:
+        for corr in correlations[:2]:
+            if corr["direction"] == "Positiva" and corr["strength"] in ["Fuerte", "Muy Fuerte"]:
+                feed.append({
+                    "category": "Oportunidad encontrada",
+                    "type": "opportunity",
+                    "color": "green",
+                    "message": f"Palanca de crecimiento: Existe una relación muy fuerte entre '{corr['col1']}' y '{corr['col2']}'. Potenciar uno impulsará directamente al otro."
+                })
+
+    if critical_vars:
+        for var in critical_vars[:1]:
+            feed.append({
+                "category": "Oportunidad encontrada",
+                "type": "opportunity",
+                "color": "green",
+                "message": f"Eje estratégico: '{var['column']}' ha sido identificado como una variable crítica que influye en múltiples áreas del negocio."
+            })
+
+    # 3. AMARILLO: Tendencias Observadas
+    for col, trend_data in trends.items():
+        trend_val = trend_data.get("trend", 0)
+        if abs(trend_val) > 0.05: # Significant trend
+            direction = "crecimiento" if trend_val > 0 else "caída"
+            status = "Tendencia observada"
+            feed.append({
+                "category": status,
+                "type": "trend",
+                "color": "yellow",
+                "message": f"Movimiento detectado: Se observa una {direction} constante en la métrica '{col}' en los últimos registros."
+            })
+            
+    if not feed:
+        feed.append({
+            "category": "Estabilidad",
+            "type": "info",
+            "color": "blue",
+            "message": "No se detectaron anomalías ni movimientos bruscos. El negocio muestra un comportamiento estable."
+        })
+        
+    return feed
+
 def generate_insights(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None) -> List[str]:
     """Generate automated insights based on data summary, trends, and health score."""
     insights = []
