@@ -119,6 +119,7 @@ def _summarize_context(context: dict) -> str:
     insights = context.get("insights", [])
     industry = context.get("industry", "General / Negocios")
     business_context = context.get("business_context", "")
+    critical_vars = context.get("critical_variables", [])
     
     lines = [
         f"Archivo: {context.get('file_name')} ({summary.get('rows', 0)} filas, {summary.get('columns', 0)} cols)",
@@ -126,6 +127,11 @@ def _summarize_context(context: dict) -> str:
         f"Contexto Empresarial: {business_context}",
         f"Salud: {context.get('health', {}).get('health_score', 0)}/100"
     ]
+    
+    if critical_vars:
+        vars_str = ", ".join([v["column"] for v in critical_vars[:3]])
+        lines.append(f"Variables Críticas (Hubs): {vars_str}")
+
     if insights:
         lines.append("Insights principales:")
         for ins in insights[:4]:

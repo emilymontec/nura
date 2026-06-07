@@ -1,10 +1,39 @@
 # analytics/insights.py
 from typing import Dict, Any, List
 
-def generate_insights(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None) -> List[str]:
+def explain_importance(correlations: List[Dict[str, Any]], critical_vars: List[Dict[str, Any]] = None) -> List[str]:
+    """Translate technical correlations into business 'Explain Importance' insights."""
+    explanations = []
+    
+    if correlations:
+        # Take the top 3 strongest correlations
+        for corr in correlations[:3]:
+            col1 = corr["col1"]
+            col2 = corr["col2"]
+            strength = corr["strength"]
+            direction = corr["direction"]
+            
+            if direction == "Positiva":
+                explanations.append(f"Vínculo detectado: '{col1}' está altamente relacionado con '{col2}'. Un incremento en uno suele impulsar al otro.")
+            else:
+                explanations.append(f"Dependencia inversa: Existe una relación opuesta entre '{col1}' y '{col2}'. Cuando uno sube, el otro tiende a bajar.")
+
+    if critical_vars:
+        for var in critical_vars[:2]:
+            col = var["column"]
+            importance = var["importance"]
+            explanations.append(f"Variable Crítica: '{col}' es un eje central en tus datos, ya que influye directamente en múltiples métricas.")
+            
+    return explanations
+
+def generate_insights(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None) -> List[str]:
     """Generate automated insights based on data summary, trends, and health score."""
     insights = []
     
+    # Explain Importance (Nivel 8)
+    if correlations:
+        insights.extend(explain_importance(correlations, critical_vars))
+        
     # Check health
     score = health.get("health_score", 0)
     if score < 50:

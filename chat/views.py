@@ -15,7 +15,7 @@ def test_endpoint(request):
     """Health check endpoint."""
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
 
-from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context
+from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
 from analytics.insights import generate_insights
@@ -38,11 +38,12 @@ def analyze_endpoint(request):
             health = evaluate_business(summary)
             trends = analyze_numeric_trends(df)
             correlations = compute_correlations(df)
-            insights = generate_insights(summary, trends, health, correlations)
+            insights = generate_insights(summary, trends, health, correlations, critical_variables)
             preview = get_preview(df)
             charts = get_chart_data(df)
             industry = detect_industry(df)
             business_context = get_business_context(df, industry)
+            critical_variables = detect_critical_variables(df)
             
             context = {
                 "file_name": file.name,
@@ -55,7 +56,8 @@ def analyze_endpoint(request):
                 "preview": preview,
                 "charts": charts,
                 "industry": industry,
-                "business_context": business_context
+                "business_context": business_context,
+                "critical_variables": critical_variables
             }
             safe_context = make_json_safe(context)
             memory.store_dataset_context(session_id, safe_context)

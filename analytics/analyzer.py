@@ -124,7 +124,7 @@ def column_info(df: pd.DataFrame) -> Dict[str, Any]:
         }
     return info
 
-def compute_correlations(df: pd.DataFrame, threshold: float = 0.65) -> List[Dict[str, Any]]:
+def compute_correlations(df: pd.DataFrame, threshold: float = 0.5) -> List[Dict[str, Any]]:
     """
     Calculate Pearson correlation for numeric columns.
     Returns a list of significant correlations (absolute value >= threshold).
@@ -135,6 +135,7 @@ def compute_correlations(df: pd.DataFrame, threshold: float = 0.65) -> List[Dict
     if len(numeric_df.columns) < 2:
         return correlations
         
+    # Standardize columns to handle different scales
     corr_matrix = numeric_df.corr()
     
     # Get upper triangle to avoid duplicates
@@ -145,17 +146,39 @@ def compute_correlations(df: pd.DataFrame, threshold: float = 0.65) -> List[Dict
             corr_value = corr_matrix.iloc[i, j]
             
             if pd.notna(corr_value) and abs(corr_value) >= threshold:
+                strength = "Muy Fuerte" if abs(corr_value) >= 0.85 else ("Fuerte" if abs(corr_value) >= 0.7 else "Moderada")
                 correlations.append({
                     "col1": col1,
                     "col2": col2,
                     "correlation": round(float(corr_value), 2),
-                    "strength": "Fuerte" if abs(corr_value) >= 0.8 else "Moderada",
+                    "strength": strength,
                     "direction": "Positiva" if corr_value > 0 else "Negativa"
                 })
                 
     # Sort by absolute correlation (strongest first)
     correlations.sort(key=lambda x: abs(x["correlation"]), reverse=True)
     return correlations
+
+def detect_critical_variables(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Detect variables that have the most influence on others (hub variables)."""
+    corrs = compute_correlations(df, threshold=0.6)
+    influence_counts = {}
+    
+    for c in corrs:
+        influence_counts[c["col1"]] = influence_counts.get(c["col1"], 0) + 1
+        influence_counts[c["col2"]] = influence_counts.get(c["col2"], 0) + 1
+        
+    critical = []
+    for col, count in influence_counts.items():
+        if count >= 2: # Influences at least 2 other variables
+            critical.append({
+                "column": col,
+                "influence_score": count,
+                "importance": "Alta" if count >= 4 else "Media"
+            })
+            
+    critical.sort(key=lambda x: x["influence_score"], reverse=True)
+    return critical
 
 def dataset_summary(df: pd.DataFrame) -> Dict[str, Any]:
     """High‑level summary of the dataset.
@@ -219,5 +242,6 @@ def analyze_csv(file_path: str) -> Dict[str, Any]:
         "preview": get_preview(df),
         "charts": get_chart_data(df),
         "industry": industry,
-        "business_context": get_business_context(df, industry)
+        "business_context": get_business_context(df, industry),
+        "critical_variables": detect_critical_variables(df)
     }
