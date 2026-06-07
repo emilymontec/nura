@@ -166,7 +166,7 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
         has_dataset = bool(context and context.get("file_name"))
         industry = context.get("industry", "General / Negocios")
 
-        if not has_dataset or len(question.split()) < 3:
+        if not has_dataset or len(question.strip()) < 5:
             selected_key = "chat"
         else:
             selected_key = route_intent(question, short_context, history)
