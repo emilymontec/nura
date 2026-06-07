@@ -15,10 +15,10 @@ def test_endpoint(request):
     """Health check endpoint."""
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
 
-from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables, detect_anomalies, check_fraud_signals, simple_forecast
+from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables, detect_anomalies, check_fraud_signals, simple_forecast, get_kpis
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
-from analytics.insights import generate_insights, generate_insight_feed
+from analytics.insights import generate_insights, generate_insight_feed, generate_ai_cards
 from analytics.utils import make_json_safe
 
 @csrf_exempt
@@ -56,6 +56,8 @@ def analyze_endpoint(request):
 
             insights = generate_insights(summary, trends, health, correlations, critical_variables)
             insight_feed = generate_insight_feed(summary, trends, health, correlations, critical_variables, anomalies, fraud_signals)
+            ai_cards = generate_ai_cards(summary, health, correlations, critical_variables, anomalies)
+            kpis = get_kpis(df)
             
             context = {
                 "file_name": file.name,
@@ -66,6 +68,8 @@ def analyze_endpoint(request):
                 "correlations": correlations,
                 "insights": insights,
                 "insight_feed": insight_feed,
+                "ai_cards": ai_cards,
+                "kpis": kpis,
                 "preview": preview,
                 "charts": charts,
                 "industry": industry,
@@ -104,7 +108,15 @@ def analyze_endpoint(request):
                     feed_items.append(f"{icon} **{item['category']}**: {item['message']}")
                 
                 feed_text = "\n".join(feed_items)
-                memory.add_message(session_id, "assistant", f"### 📱 Insight Feed (Proactivo)\n{feed_text}")
+                
+                # Formatear AI Cards para el chat
+                cards_text = ""
+                if ai_cards:
+                    cards_text = "\n\n**📊 AI Cards - Dashboard**\n"
+                    for key, card in ai_cards.items():
+                        cards_text += f"{card['icon']} **{card['title']}**: {card['value']} - {card['description']}\n"
+                
+                memory.add_message(session_id, "assistant", f"### 📱 Insight Feed (Proactivo)\n{feed_text}{cards_text}")
             elif insights:
                 insights_text = "\n- ".join(insights)
                 bot_msg2 = f"Insights iniciales para {industry}:\n- {insights_text}"

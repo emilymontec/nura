@@ -234,6 +234,50 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
 from .anomalies import detect_anomalies, check_fraud_signals
 from .forecasting import simple_forecast
 
+def get_kpis(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Calculate key performance indicators (KPIs) from the dataset."""
+    kpis = []
+    numeric_df = df.select_dtypes(include=[np.number])
+    
+    if numeric_df.empty:
+        return kpis
+        
+    # Generic KPIs based on common column names
+    for col in numeric_df.columns:
+        col_lower = col.lower()
+        if any(w in col_lower for w in ["total", "monto", "amount", "revenue", "ventas", "sales", "profit", "ganancia"]):
+            kpis.append({
+                "label": f"Total {col}",
+                "value": round(float(numeric_df[col].sum()), 2),
+                "type": "currency"
+            })
+            kpis.append({
+                "label": f"Promedio {col}",
+                "value": round(float(numeric_df[col].mean()), 2),
+                "type": "currency"
+            })
+        elif any(w in col_lower for w in ["count", "cantidad", "qty", "items", "unidades", "units"]):
+            kpis.append({
+                "label": f"Volumen {col}",
+                "value": int(numeric_df[col].sum()),
+                "type": "number"
+            })
+            
+    # If no specific matches, return some general stats
+    if not kpis:
+        kpis.append({
+            "label": "Registros Totales",
+            "value": len(df),
+            "type": "number"
+        })
+        kpis.append({
+            "label": "Columnas Analizadas",
+            "value": len(df.columns),
+            "type": "number"
+        })
+        
+    return kpis[:4] # Limit to top 4
+
 def analyze_csv(file_path: str) -> Dict[str, Any]:
     """Convenient wrapper that loads a CSV and returns a full analysis.
     """

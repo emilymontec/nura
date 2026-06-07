@@ -26,6 +26,66 @@ def explain_importance(correlations: List[Dict[str, Any]], critical_vars: List[D
             
     return explanations
 
+def generate_ai_cards(summary: Dict, health: Dict, correlations: List, critical_vars: List, anomalies: List) -> Dict[str, Dict]:
+    """Generate high-level 'AI Cards' for the Intelligent Dashboard."""
+    cards = {
+        "top_risk": {
+            "title": "Top Riesgo",
+            "icon": "⚠️",
+            "value": "Bajo",
+            "color": "green",
+            "description": "No se detectan riesgos críticos."
+        },
+        "top_opportunity": {
+            "title": "Top Oportunidad",
+            "icon": "🚀",
+            "value": "Estable",
+            "color": "blue",
+            "description": "Mantener estrategia actual."
+        },
+        "top_priority": {
+            "title": "Top Prioridad",
+            "icon": "🎯",
+            "value": "Calidad",
+            "color": "yellow",
+            "description": "Optimizar recolección de datos."
+        }
+    }
+
+    # 1. Logic for Top Risk
+    if anomalies or health.get("health_score", 100) < 70:
+        cards["top_risk"] = {
+            "title": "Top Riesgo",
+            "icon": "🚨",
+            "value": "Crítico" if len(anomalies) > 5 else "Moderado",
+            "color": "red",
+            "description": f"Detectadas {len(anomalies)} anomalías en el comportamiento de los datos."
+        }
+    
+    # 2. Logic for Top Opportunity
+    if correlations:
+        best_corr = correlations[0]
+        cards["top_opportunity"] = {
+            "title": "Top Oportunidad",
+            "icon": "📈",
+            "value": "Crecimiento",
+            "color": "green",
+            "description": f"Vínculo fuerte entre {best_corr['col1']} y {best_corr['col2']}."
+        }
+    
+    # 3. Logic for Top Priority
+    if critical_vars:
+        best_var = critical_vars[0]
+        cards["top_priority"] = {
+            "title": "Top Prioridad",
+            "icon": "⚡",
+            "value": best_var["column"],
+            "color": "purple",
+            "description": f"Variable con mayor impacto detectada en el ecosistema."
+        }
+        
+    return cards
+
 def generate_insight_feed(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None, anomalies: List[Dict] = None, fraud_signals: List[str] = None) -> List[Dict[str, Any]]:
     """Generate a structured feed of proactive insights with business categorization and colors."""
     feed = []
