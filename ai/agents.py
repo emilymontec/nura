@@ -49,18 +49,18 @@ AGENT_REGISTRY = {
     "recommendation": AgentProfile(
         key="recommendation",
         name="Recommendation Agent",
-        focus="acciones, optimizacion, soluciones concretas y siguientes pasos",
-        goal="convertir el analisis en decisiones accionables y recomendaciones claras",
-        triggers=("recomienda", "accion", "mejora", "optimiza", "solucion", "que hago", "siguiente paso"),
+        focus="acciones, optimización, soluciones concretas y estrategias de mejora",
+        goal="convertir el análisis en decisiones accionables y recomendaciones estratégicas claras",
+        triggers=("recomienda", "acción", "mejora", "optimiza", "solución", "qué hago", "siguiente paso", "estrategia"),
         requires_dataset=False,
         priority=88,
     ),
-    "strategy": AgentProfile(
-        key="strategy",
-        name="Strategy Agent",
-        focus="impacto ejecutivo, priorizacion, criterio de negocio y lectura estrategica",
-        goal="traducir datos y contexto en implicaciones de negocio y prioridades",
-        triggers=("estrategia", "negocio", "prioriza", "direccion", "impacto", "ejecutivo"),
+    "executive": AgentProfile(
+        key="executive",
+        name="Executive Agent",
+        focus="impacto ejecutivo, visión de negocio, criterio de alta gerencia y lectura estratégica",
+        goal="hablar como un CEO o consultor senior, traduciendo datos en implicaciones de alto nivel y prioridades de negocio",
+        triggers=("ejecutivo", "negocio", "prioriza", "dirección", "impacto", "ceo", "gerencia", "visión"),
         requires_dataset=False,
         priority=84,
     ),
@@ -126,9 +126,9 @@ def select_agents(question: str, context: Dict, history: str) -> List[AgentProfi
     if has_dataset:
         defaults = ["insight", "risk", "recommendation"]
         if _dataset_signal_count(context) >= 3:
-            defaults.append("strategy")
+            defaults.append("executive")
     else:
-        defaults = ["strategy", "recommendation"]
+        defaults = ["executive", "recommendation"]
 
     for key in defaults:
         agent = AGENT_REGISTRY[key]

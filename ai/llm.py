@@ -24,20 +24,23 @@ class LLMRouter:
         
         # Define model tiers to optimize cost and performance
         # Each tier defines a fallback sequence: (provider, model)
+        # Sequence: Groq -> Cerebras -> OpenRouter (including Gemini)
         self.tiers = {
             "fast": [
                 ("groq", "llama-3.1-8b-instant"),
                 ("cerebras", "llama3.1-8b"),
-                ("openrouter", "google/gemini-2.5-flash")
+                ("openrouter", "google/gemini-2.0-flash-001")
             ],
             "standard": [
                 ("groq", "llama-3.3-70b-versatile"),
                 ("cerebras", "llama3.1-70b"),
+                ("openrouter", "google/gemini-pro-1.5"),
                 ("openrouter", "meta-llama/llama-3.3-70b-instruct")
             ],
             "premium": [
                 ("openrouter", "anthropic/claude-3.5-sonnet"),
                 ("openrouter", "openai/gpt-4o"),
+                ("openrouter", "google/gemini-pro-1.5"),
                 ("groq", "llama-3.3-70b-versatile")
             ]
         }
