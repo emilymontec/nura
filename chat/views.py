@@ -15,7 +15,7 @@ def test_endpoint(request):
     """Health check endpoint."""
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
 
-from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables
+from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables, detect_anomalies, check_fraud_signals, simple_forecast
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
 from analytics.insights import generate_insights, generate_insight_feed
@@ -45,6 +45,17 @@ def analyze_endpoint(request):
             industry = detect_industry(df)
             business_context = get_business_context(df, industry)
             critical_variables = detect_critical_variables(df)
+            anomalies = detect_anomalies(df)
+            fraud_signals = check_fraud_signals(df)
+            
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            forecasts = {}
+            for col in numeric_cols[:2]:
+                f = simple_forecast(df, col)
+                if f: forecasts[col] = f
+
+            insights = generate_insights(summary, trends, health, correlations, critical_variables)
+            insight_feed = generate_insight_feed(summary, trends, health, correlations, critical_variables, anomalies, fraud_signals)
             
             context = {
                 "file_name": file.name,
@@ -59,7 +70,10 @@ def analyze_endpoint(request):
                 "charts": charts,
                 "industry": industry,
                 "business_context": business_context,
-                "critical_variables": critical_variables
+                "critical_variables": critical_variables,
+                "anomalies": anomalies,
+                "fraud_signals": fraud_signals,
+                "forecasts": forecasts
             }
             safe_context = make_json_safe(context)
             memory.store_dataset_context(session_id, safe_context)

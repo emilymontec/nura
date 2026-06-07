@@ -231,11 +231,26 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
             
     return charts
 
+from .anomalies import detect_anomalies, check_fraud_signals
+from .forecasting import simple_forecast
+
 def analyze_csv(file_path: str) -> Dict[str, Any]:
     """Convenient wrapper that loads a CSV and returns a full analysis.
     """
     df = load_csv(file_path)
     industry = detect_industry(df)
+    
+    # New Level 10 & 11 features
+    anomalies = detect_anomalies(df)
+    fraud_signals = check_fraud_signals(df)
+    
+    # Auto forecast for key numeric columns
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    forecasts = {}
+    for col in numeric_cols[:2]: # Top 2
+        f = simple_forecast(df, col)
+        if f: forecasts[col] = f
+
     return {
         "summary": dataset_summary(df),
         "columns": column_info(df),
@@ -243,5 +258,8 @@ def analyze_csv(file_path: str) -> Dict[str, Any]:
         "charts": get_chart_data(df),
         "industry": industry,
         "business_context": get_business_context(df, industry),
-        "critical_variables": detect_critical_variables(df)
+        "critical_variables": detect_critical_variables(df),
+        "anomalies": anomalies,
+        "fraud_signals": fraud_signals,
+        "forecasts": forecasts
     }

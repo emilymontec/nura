@@ -26,11 +26,27 @@ def explain_importance(correlations: List[Dict[str, Any]], critical_vars: List[D
             
     return explanations
 
-def generate_insight_feed(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def generate_insight_feed(summary: Dict[str, Any], trends: Dict[str, Any], health: Dict[str, Any], correlations: List[Dict[str, Any]] = None, critical_vars: List[Dict[str, Any]] = None, anomalies: List[Dict] = None, fraud_signals: List[str] = None) -> List[Dict[str, Any]]:
     """Generate a structured feed of proactive insights with business categorization and colors."""
     feed = []
     
-    # 1. ROJO: Riesgos y Anomalías
+    # 1. ROJO: Riesgos, Anomalías y Fraude
+    if fraud_signals:
+        for signal in fraud_signals:
+            feed.append({
+                "category": "Alerta de Fraude/Error",
+                "type": "fraud",
+                "color": "red",
+                "message": signal
+            })
+
+    if anomalies:
+        feed.append({
+            "category": "Anomalía detectada",
+            "type": "anomaly",
+            "color": "red",
+            "message": f"Se detectaron {len(anomalies)} registros con comportamiento fuera de lo común (Outliers)."
+        })
     score = health.get("health_score", 0)
     if score < 60:
         feed.append({

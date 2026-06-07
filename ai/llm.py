@@ -120,6 +120,8 @@ def _summarize_context(context: dict) -> str:
     industry = context.get("industry", "General / Negocios")
     business_context = context.get("business_context", "")
     critical_vars = context.get("critical_variables", [])
+    forecasts = context.get("forecasts", {})
+    anomalies = context.get("anomalies", [])
     
     lines = [
         f"Archivo: {context.get('file_name')} ({summary.get('rows', 0)} filas, {summary.get('columns', 0)} cols)",
@@ -128,9 +130,18 @@ def _summarize_context(context: dict) -> str:
         f"Salud: {context.get('health', {}).get('health_score', 0)}/100"
     ]
     
+    if anomalies:
+        lines.append(f"Anomalías: Se detectaron {len(anomalies)} registros anómalos (outliers).")
+
     if critical_vars:
         vars_str = ", ".join([v["column"] for v in critical_vars[:3]])
-        lines.append(f"Variables Críticas (Hubs): {vars_str}")
+        lines.append(f"Variables Críticas: {vars_str}")
+        
+    if forecasts:
+        f_lines = []
+        for col, f in forecasts.items():
+            f_lines.append(f"{col}: {f['expected_growth']}% crecimiento esperado")
+        lines.append("Predicciones: " + " | ".join(f_lines))
 
     if insights:
         lines.append("Insights principales:")
