@@ -151,7 +151,7 @@ Strategy:
 ```bash
 What should I prioritize?
 ```
-Executive Leadership
+Executive Leadership:
 ```bash
 What would a CEO do?
 ```
@@ -333,7 +333,7 @@ If a provider becomes unavailable, NURA automatically switches to the next avail
 <tr>
 <td width="20%" valign="top">
 
-<h3>🏢 Companies</h3>
+<h3>Companies</h3>
 
 * Financial analysis
 * KPI monitoring
@@ -342,7 +342,7 @@ If a provider becomes unavailable, NURA automatically switches to the next avail
 </td>
 <td width="20%" valign="top">
 
-<h3>📣 Marketing</h3>
+<h3>Marketing</h3>
 
 * Campaign analysis
 * Conversion optimization
@@ -351,7 +351,7 @@ If a provider becomes unavailable, NURA automatically switches to the next avail
 </td>
 <td width="20%" valign="top">
 
-<h3>🛒 Ecommerce</h3>
+<h3>Ecommerce</h3>
 
 * Sales analytics
 * Customer retention
@@ -360,7 +360,7 @@ If a provider becomes unavailable, NURA automatically switches to the next avail
 </td>
 <td width="20%" valign="top">
 
-<h3>🚀 Startups</h3>
+<h3>Startups</h3>
 
 * Growth tracking
 * Product analytics
@@ -407,7 +407,7 @@ Designed to evolve into a complete SaaS platform.
 
 ## System Architecture
 ```bash
-nura-bi
+nura
   ↓
 Frontend
   ↓
