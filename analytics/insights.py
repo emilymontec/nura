@@ -14,15 +14,15 @@ def explain_importance(correlations: List[Dict[str, Any]], critical_vars: List[D
             direction = corr["direction"]
             
             if direction == "Positiva":
-                explanations.append(f"Vínculo detectado: '{col1}' está altamente relacionado con '{col2}'. Un incremento en uno suele impulsar al otro.")
+                explanations.append(f"Vínculo detectado: '{col1}' tiene una relación directa con '{col2}'. Si uno sube, es muy probable que el otro también lo haga.")
             else:
-                explanations.append(f"Dependencia inversa: Existe una relación opuesta entre '{col1}' y '{col2}'. Cuando uno sube, el otro tiende a bajar.")
+                explanations.append(f"Relación inversa: '{col1}' y '{col2}' se mueven en direcciones opuestas. Cuando uno aumenta, el otro suele disminuir.")
 
     if critical_vars:
         for var in critical_vars[:2]:
             col = var["column"]
             importance = var["importance"]
-            explanations.append(f"Variable Crítica: '{col}' es un eje central en tus datos, ya que influye directamente en múltiples métricas.")
+            explanations.append(f"Punto clave: '{col}' es un eje central en tu negocio, ya que afecta a varios indicadores al mismo tiempo.")
             
     return explanations
 
@@ -102,10 +102,10 @@ def generate_insight_feed(summary: Dict[str, Any], trends: Dict[str, Any], healt
 
     if anomalies:
         feed.append({
-            "category": "Anomalía detectada",
+            "category": "Valor inusual detectado",
             "type": "anomaly",
             "color": "red",
-            "message": f"Se detectaron {len(anomalies)} registros con comportamiento fuera de lo común (Outliers)."
+            "message": f"Se detectaron {len(anomalies)} registros con comportamiento fuera de lo común que podrían ser errores o casos especiales."
         })
     score = health.get("health_score", 0)
     if score < 60:

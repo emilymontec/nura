@@ -56,18 +56,20 @@ def make_json_safe(value: Any) -> Any:
     """Recursively convert pandas/numpy values into JSON-safe Python types."""
     if isinstance(value, dict):
         return {str(key): make_json_safe(item) for key, item in value.items()}
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple, set, np.ndarray)):
         return [make_json_safe(item) for item in value]
-    if isinstance(value, tuple):
-        return [make_json_safe(item) for item in value]
-    if isinstance(value, (np.integer,)):
+    if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
         return int(value)
-    if isinstance(value, (np.floating,)):
+    if isinstance(value, (np.floating, np.float64, np.float32, np.float16)):
         return float(value)
-    if isinstance(value, (np.bool_,)):
+    if isinstance(value, (np.bool_, bool)):
         return bool(value)
     if isinstance(value, pd.Timestamp):
         return value.isoformat()
     if pd.isna(value):
         return None
+    if hasattr(value, 'tolist'): # Handle other numpy-like objects
+        return make_json_safe(value.tolist())
+    if hasattr(value, 'item'): # Handle numpy scalars
+        return make_json_safe(value.item())
     return value

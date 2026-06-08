@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
@@ -32,16 +33,14 @@ def analyze_endpoint(request):
         session_id = request.POST.get('session_id', 'default')
         
         try:
+            import traceback
             df = load_csv(file)
             summary = dataset_summary(df)
             cols = column_info(df)
             health = evaluate_business(summary)
             trends = analyze_numeric_trends(df)
             correlations = compute_correlations(df)
-            insights = generate_insights(summary, trends, health, correlations, critical_variables)
-            insight_feed = generate_insight_feed(summary, trends, health, correlations, critical_variables)
-            preview = get_preview(df)
-            charts = get_chart_data(df)
+            
             industry = detect_industry(df)
             business_context = get_business_context(df, industry)
             critical_variables = detect_critical_variables(df)
@@ -51,8 +50,11 @@ def analyze_endpoint(request):
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             forecasts = {}
             for col in numeric_cols[:2]:
-                f = simple_forecast(df, col)
-                if f: forecasts[col] = f
+                try:
+                    f = simple_forecast(df, col)
+                    if f: forecasts[col] = f
+                except:
+                    pass
 
             insights = generate_insights(summary, trends, health, correlations, critical_variables)
             insight_feed = generate_insight_feed(summary, trends, health, correlations, critical_variables, anomalies, fraud_signals)
@@ -70,8 +72,8 @@ def analyze_endpoint(request):
                 "insight_feed": insight_feed,
                 "ai_cards": ai_cards,
                 "kpis": kpis,
-                "preview": preview,
-                "charts": charts,
+                "preview": get_preview(df),
+                "charts": get_chart_data(df),
                 "industry": industry,
                 "business_context": business_context,
                 "critical_variables": critical_variables,
@@ -87,14 +89,14 @@ def analyze_endpoint(request):
             try:
                 ai_report = generate_ai_report(safe_context)
                 safe_context["ai_report"] = ai_report
-            except:
-                pass
+            except Exception as e:
+                print(f"[NURA] Error al generar reporte IA: {e}")
 
             # Guardar en el historial de chat la carga del archivo
             memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
             
-            score = safe_context['health'].get('health_score')
-            score_str = f"{score:.2f}" if score is not None else "0.00"
+            score = safe_context['health'].get('health_score', 0)
+            score_str = f"{score:.2f}"
             bot_msg1 = f"Analisis completado.\nArchivo: {safe_context['file_name']}\nSector detectado: {industry}\nRegistros: {safe_context['summary']['rows']}\nColumnas: {safe_context['summary']['columns']}\nRiesgo: {safe_context['health']['risk_level']}\nSalud: {score_str}"
             memory.add_message(session_id, "assistant", bot_msg1)
             
@@ -124,6 +126,8 @@ def analyze_endpoint(request):
             
             return JsonResponse(safe_context)
         except Exception as e:
+            print(f"[NURA] CRASH EN ANALISIS: {str(e)}")
+            traceback.print_exc()
             return JsonResponse({"error": f"Error al analizar el archivo: {str(e)}"}, status=500)
             
     return JsonResponse({"error": "Se requiere una peticion POST"}, status=400)

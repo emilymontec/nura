@@ -1472,20 +1472,11 @@ input {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.6);
     background: transparent;
     box-shadow: none;
-}
-
-.attach-btn {
-    border-color: rgba(255, 255, 255, 0.06);
     transition: all 0.25s;
-}
-
-.send-btn {
-    border-color: rgba(255, 255, 255, 0.12);
-    transition: all 0.25s;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .attach-btn:hover {
@@ -1495,10 +1486,9 @@ input {
 }
 
 .send-btn:hover {
-    color: #fff;
-    background: linear-gradient(135deg, var(--cyan), var(--purple));
-    border-color: transparent;
-    box-shadow: 0 0 16px rgba(0, 242, 254, 0.3);
+    color: var(--purple);
+    border-color: rgba(177, 86, 255, 0.35);
+    box-shadow: 0 0 12px rgba(177, 86, 255, 0.15);
 }
 
 #user-input {
@@ -1522,10 +1512,6 @@ input {
     letter-spacing: 0.5px;
     text-transform: none;
     font-size: 0.9rem;
-}
-
-.send-btn {
-    color: rgba(255, 255, 255, 0.72);
 }
 
 .composer-footer {
