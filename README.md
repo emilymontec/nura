@@ -369,7 +369,7 @@ If a provider becomes unavailable, NURA automatically switches to the next avail
 </td>
 <td width="20%" valign="top">
 
-<h3>📑 Consulting</h3>
+<h3>Consulting</h3>
 
 * Diagnostics
 * Executive reports
