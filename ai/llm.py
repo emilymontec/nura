@@ -114,7 +114,15 @@ def _summarize_context(context: dict) -> str:
     """Summarize context in human-friendly terms for the LLM."""
     if not context or not context.get("file_name"):
         return "Actualmente no hay ningún archivo cargado. Estamos en modo de conversación general."
-        
+
+    # Handle RAG document mode (PDF/DOCX with extracted text)
+    if context.get("mode") == "rag_document":
+        content = context.get("content", "")
+        return (
+            f"Documento cargado: '{context.get('file_name')}'\n"
+            f"Contenido del documento:\n{content}"
+        )
+
     summary = context.get("summary", {})
     insights = context.get("insights", [])
     industry = context.get("industry", "General / Negocios")
@@ -122,21 +130,44 @@ def _summarize_context(context: dict) -> str:
     critical_vars = context.get("critical_variables", [])
     forecasts = context.get("forecasts", {})
     anomalies = context.get("anomalies", [])
-    
+    columns = context.get("columns", {})
+    preview = context.get("preview", [])
+
     lines = [
         f"Información del archivo: Se llama '{context.get('file_name')}' y tiene {summary.get('rows', 0)} registros.",
         f"Giro del negocio: {industry}",
         f"Lo que hace la empresa: {business_context}",
-        f"Salud de los datos: {context.get('health', {}).get('health_score', 0)} de 100 puntos."
+        f"Salud de los datos: {context.get('health', {}).get('health_score', 0)} de 100 puntos.",
     ]
-    
+
+    # Incluir nombres de columnas y sus tipos
+    if columns:
+        col_lines = []
+        for col_name, col_info in columns.items():
+            col_lines.append(f"  - {col_name} ({col_info.get('semantic_type', col_info.get('dtype', 'desconocido'))})")
+        lines.append("Columnas del archivo:\n" + "\n".join(col_lines))
+
+    # Incluir vista previa de los datos (primeras filas)
+    if preview:
+        preview_lines = ["Vista previa de los datos (primeras filas):"]
+        col_names = list(preview[0].keys()) if preview else []
+        if col_names:
+            preview_lines.append("  " + " | ".join(str(c) for c in col_names))
+            for row in preview[:8]:
+                vals = []
+                for c in col_names:
+                    v = row.get(c)
+                    vals.append(str(v) if v is not None else "")
+                preview_lines.append("  " + " | ".join(vals))
+        lines.append("\n".join(preview_lines))
+
     if anomalies:
         lines.append(f"Cosas raras: He visto {len(anomalies)} datos que parecen fuera de lugar o extraños.")
 
     if critical_vars:
         vars_str = ", ".join([v["column"] for v in critical_vars[:3]])
         lines.append(f"Temas importantes en los datos: {vars_str}")
-        
+
     if forecasts:
         f_lines = []
         for col, f in forecasts.items():
@@ -147,7 +178,7 @@ def _summarize_context(context: dict) -> str:
         lines.append("Hallazgos curiosos:")
         for ins in insights[:4]:
             lines.append(f"- {ins}")
-            
+
     return "\n".join(lines)
 
 def route_intent(question: str, context: dict, history: str) -> str:

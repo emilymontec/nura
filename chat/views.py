@@ -1,3 +1,4 @@
+import io
 import json
 import traceback
 
@@ -45,11 +46,20 @@ def analyze_endpoint(request):
             # Solo intentamos análisis profundo de datos si es CSV o Excel
             suffix = file.name.lower().split('.')[-1]
             if suffix not in ['csv', 'xlsx', 'xls']:
-                # Para otros archivos (PDF, DOCX), solo confirmamos la carga vía RAG
+                # Guardar contexto del documento para que el LLM sepa que existe
+                doc_context = {
+                    "file_name": file.name,
+                    "mode": "rag_document",
+                    "has_dataset": True,
+                    "content": rag_result.get("content", "")[:5000],
+                }
+                memory.store_dataset_context(session_id, doc_context)
                 bot_msg_rag = f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras."
                 memory.add_message(session_id, "assistant", bot_msg_rag)
                 return JsonResponse({"status": "rag_only", "file_name": file.name})
 
+            # Re-read the file into a buffer since RAG engine already consumed it
+            file.seek(0)
             df = load_csv(file)
             summary = dataset_summary(df)
             cols = column_info(df)

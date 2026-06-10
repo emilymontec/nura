@@ -15,44 +15,50 @@ class RAGAnalytics:
         file_name = getattr(file_obj, "name", "documento")
         suffix = os.path.splitext(file_name)[1].lower()
         content = ""
-        
+
         try:
+            # Read file into BytesIO to avoid consuming the cursor for downstream consumers
+            raw_bytes = file_obj.read()
+            buffer = io.BytesIO(raw_bytes)
+
             if suffix == ".pdf":
-                reader = PdfReader(file_obj)
+                buffer.seek(0)
+                reader = PdfReader(buffer)
                 text_parts = []
                 for page in reader.pages:
                     text_parts.append(page.extract_text())
                 content = "\n".join(text_parts)
-            
+
             elif suffix == ".docx":
-                doc = Document(file_obj)
+                buffer.seek(0)
+                doc = Document(buffer)
                 content = "\n".join([p.text for p in doc.paragraphs])
-            
+
             elif suffix in [".xlsx", ".xls"]:
-                # For Excel, we extract a summary and some sample rows as text for RAG
-                df = pd.read_excel(file_obj)
+                buffer.seek(0)
+                df = pd.read_excel(buffer)
                 content = f"Archivo Excel: {file_name}\nColumnas: {', '.join(df.columns)}\nResumen:\n{df.describe().to_string()}\nVista previa:\n{df.head(10).to_string()}"
-            
+
             elif suffix == ".csv":
-                df = pd.read_csv(file_obj)
+                buffer.seek(0)
+                df = pd.read_csv(buffer)
                 content = f"Archivo CSV: {file_name}\nColumnas: {', '.join(df.columns)}\nVista previa:\n{df.head(10).to_string()}"
-            
+
             if content:
-                # Chunk content for better retrieval
                 chunks = self._chunk_text(content)
                 for i, chunk in enumerate(chunks):
                     vector_memory._add_to_index(chunk, {
-                        "session_id": session_id, 
-                        "file_name": file_name, 
+                        "session_id": session_id,
+                        "file_name": file_name,
                         "type": "rag_document"
                     })
-                return {"status": "success", "message": f"Contenido de '{file_name}' indexado correctamente."}
-            
+                return {"status": "success", "content": content, "message": f"Contenido de '{file_name}' indexado correctamente."}
+
         except Exception as e:
             print(f"[RAGAnalytics] Error procesando {file_name}: {e}")
-            return {"status": "error", "message": str(e)}
-            
-        return {"status": "skipped", "message": "Tipo de archivo no procesado para RAG."}
+            return {"status": "error", "message": str(e), "content": ""}
+
+        return {"status": "skipped", "message": "Tipo de archivo no procesado para RAG.", "content": ""}
 
     def _chunk_text(self, text: str, chunk_size: int = 1000) -> List[str]:
         """Split text into manageable chunks for vector indexing."""
