@@ -11,23 +11,23 @@ class VectorMemory:
     
     def __init__(self, db_path: str = "nura_memory_v3"):
         self.db_path = db_path
-        if not os.path.exists(db_path):
-            os.makedirs(db_path)
-            
         self.meta_file = os.path.join(db_path, "metadata.json")
-        
-        # Initialize TF-IDF Vectorizer
-        self.vectorizer = TfidfVectorizer(stop_words=None) # We use our own logic or keep it simple
-        
-        # Load or create metadata
+        self.vectorizer = TfidfVectorizer(stop_words=None)
+        self.metadata = self._load_metadata()
+
+    def _ensure_dir(self):
+        if not os.path.exists(self.db_path):
+            os.makedirs(self.db_path, exist_ok=True)
+
+    def _load_metadata(self):
         if os.path.exists(self.meta_file):
             with open(self.meta_file, 'r', encoding='utf-8') as f:
-                self.metadata = json.load(f)
-        else:
-            self.metadata = []
+                return json.load(f)
+        return []
 
     def _save(self):
         """Save metadata to disk."""
+        self._ensure_dir()
         with open(self.meta_file, 'w', encoding='utf-8') as f:
             json.dump(self.metadata, f, ensure_ascii=False, indent=2)
 
