@@ -36,14 +36,17 @@ def analyze_endpoint(request):
         # Procesamiento RAG (PDF, Word, Excel, CSV)
         rag_result = rag_analytics.process_file(file, session_id)
         
+        # Guardar mensaje de usuario de carga de archivo inmediatamente
+        memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
+        
         try:
             import traceback
             # Solo intentamos análisis profundo de datos si es CSV o Excel
             suffix = file.name.lower().split('.')[-1]
             if suffix not in ['csv', 'xlsx', 'xls']:
                 # Para otros archivos (PDF, DOCX), solo confirmamos la carga vía RAG
-                memory.add_message(session_id, "user", f"Documento cargado: {file.name}")
-                memory.add_message(session_id, "assistant", f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras.")
+                bot_msg_rag = f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras."
+                memory.add_message(session_id, "assistant", bot_msg_rag)
                 return JsonResponse({"status": "rag_only", "file_name": file.name})
 
             df = load_csv(file)
@@ -104,9 +107,6 @@ def analyze_endpoint(request):
             except Exception as e:
                 print(f"[NURA] Error al generar reporte IA: {e}")
 
-            # Guardar en el historial de chat la carga del archivo
-            memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
-            
             score = safe_context['health'].get('health_score', 0)
             score_str = f"{score:.0f}"
             bot_msg1 = (
@@ -161,6 +161,9 @@ def chat_endpoint(request):
             if not message:
                 return JsonResponse({"error": "El mensaje no puede estar vacio."}, status=400)
             
+            # Guardar el mensaje del usuario inmediatamente para que no se pierda
+            memory.add_message(session_id, "user", message)
+            
             history = memory.get_history(session_id, message)
             
             context = memory.get_dataset_context(session_id) or {
@@ -169,10 +172,10 @@ def chat_endpoint(request):
                 "mode": "chat_general",
             }
             
-            # This calls the Groq API
+            # This calls the LLM
             response = chat_with_data(message, context, history)
             
-            memory.add_message(session_id, "user", message)
+            # Guardar la respuesta del asistente
             memory.add_message(session_id, "assistant", response)
             
             return JsonResponse({"response": response})

@@ -203,6 +203,11 @@ class MemoryManager:
         session = self._get_session(session_id)
         msg = ChatMessage.objects.create(session=session, role=role, content=content)
 
+        # Actualizar título de la sesión si es el primer mensaje del usuario
+        if role == "user" and (not session.title or session.title == "Nueva sesión" or session.title == "Nuevo chat"):
+            session.title = self._shorten(content, max_len=40)
+            session.save(update_fields=["title", "updated_at"])
+
         # Guardar en memoria vectorial para largo plazo
         try:
             vector_memory.store_conversation(session_id, role, content, str(msg.id))
