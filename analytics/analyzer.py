@@ -10,16 +10,51 @@ import numpy as np
 
 def load_csv(file_obj) -> pd.DataFrame:
     """Load a CSV or Excel file into a pandas DataFrame."""
-    file_type = detect_file_type(file_obj)
-    readers = {
-        ".csv": pd.read_csv,
-        ".xlsx": pd.read_excel,
-        ".xls": pd.read_excel,
-    }
-    reader = readers.get(file_type)
-    if not reader:
-        raise ValueError("Tipo de archivo no soportado. Sube un archivo CSV o Excel.")
-    return reader(file_obj)
+    file_type = (detect_file_type(file_obj) or "").strip().lower()
+
+    # Robust fallback CSV parser (shared by all paths)
+    def _read_csv_fallback() -> pd.DataFrame:
+        encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252", "utf-16"]
+        separators = [",", ";", "\t", "|"]
+
+        last_err: Exception | None = None
+        for enc in encodings:
+            for sep in separators:
+                try:
+                    # reset pointer before each attempt if possible
+                    try:
+                        file_obj.seek(0)
+                    except Exception:
+                        pass
+
+                    df = pd.read_csv(file_obj, encoding=enc, sep=sep)
+                    if df is None or df.empty or len(df.columns) == 0:
+                        raise ValueError("No columns parsed from CSV.")
+                    return df
+                except Exception as e:
+                    last_err = e
+
+        raise ValueError(f"CSV no compatible o vacío. Error original: {last_err}") from last_err
+
+    if file_type in [".xlsx", ".xls"]:
+        try:
+            try:
+                file_obj.seek(0)
+            except Exception:
+                pass
+            df = pd.read_excel(file_obj)
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el archivo Excel: {e}") from e
+
+        if df is None or df.empty or len(df.columns) == 0:
+            raise ValueError("El Excel está vacío o no contiene columnas válidas.")
+        return df
+
+    if file_type == ".csv":
+        return _read_csv_fallback()
+
+    # If the extension isn't reliable, try CSV as a fallback (keeps /analyze working)
+    return _read_csv_fallback()
 
 def _infer_semantic_type(col_name: str, dtype_str: str) -> str:
     """Infer the business semantic type of a column based on its name and dtype."""

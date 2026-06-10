@@ -1,4 +1,6 @@
 import json
+import traceback
+
 import numpy as np
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -40,7 +42,6 @@ def analyze_endpoint(request):
         memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
         
         try:
-            import traceback
             # Solo intentamos análisis profundo de datos si es CSV o Excel
             suffix = file.name.lower().split('.')[-1]
             if suffix not in ['csv', 'xlsx', 'xls']:
@@ -144,9 +145,10 @@ def analyze_endpoint(request):
             
             return JsonResponse(safe_context)
         except Exception as e:
-            print(f"[NURA] CRASH EN ANALISIS: {str(e)}")
+            err = f"Error al analizar el archivo: {str(e)}"
+            print(f"[NURA] CRASH EN ANALISIS: {err}")
             traceback.print_exc()
-            return JsonResponse({"error": f"Error al analizar el archivo: {str(e)}"}, status=500)
+            return JsonResponse({"error": err, "exception": type(e).__name__, "detail": repr(e)}, status=500)
             
     return JsonResponse({"error": "Se requiere una peticion POST"}, status=400)
 
