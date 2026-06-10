@@ -89,12 +89,15 @@ mysql-conector-python
 mysql-connector-python
 narwhals
 numpy
-openpyxl
 outcome
 packaging
 pandas
 chromadb
 sentence-transformers
+openpyxl
+pypdf
+python-docx
+xlrd
 passlib
 pathlib
 pillow

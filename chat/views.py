@@ -17,6 +17,7 @@ def test_endpoint(request):
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
 
 from analytics.analyzer import load_csv, dataset_summary, column_info, compute_correlations, get_preview, get_chart_data, detect_industry, get_business_context, detect_critical_variables, detect_anomalies, check_fraud_signals, simple_forecast, get_kpis
+from analytics.rag_engine import rag_analytics
 from analytics.scoring import evaluate_business
 from analytics.trends import analyze_numeric_trends
 from analytics.insights import generate_insights, generate_insight_feed, generate_ai_cards
@@ -32,8 +33,19 @@ def analyze_endpoint(request):
         file = request.FILES['file']
         session_id = request.POST.get('session_id', 'default')
         
+        # Procesamiento RAG (PDF, Word, Excel, CSV)
+        rag_result = rag_analytics.process_file(file, session_id)
+        
         try:
             import traceback
+            # Solo intentamos análisis profundo de datos si es CSV o Excel
+            suffix = file.name.lower().split('.')[-1]
+            if suffix not in ['csv', 'xlsx', 'xls']:
+                # Para otros archivos (PDF, DOCX), solo confirmamos la carga vía RAG
+                memory.add_message(session_id, "user", f"Documento cargado: {file.name}")
+                memory.add_message(session_id, "assistant", f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras.")
+                return JsonResponse({"status": "rag_only", "file_name": file.name})
+
             df = load_csv(file)
             summary = dataset_summary(df)
             cols = column_info(df)

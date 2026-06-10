@@ -767,10 +767,10 @@ async function handleFileUpload(event) {
         return;
     }
 
-    const allowedExtensions = [".csv", ".xlsx", ".xls"];
+    const allowedExtensions = [".csv", ".xlsx", ".xls", ".pdf", ".docx", ".doc"];
     const extension = `.${file.name.split(".").pop().toLowerCase()}`;
     if (!allowedExtensions.includes(extension)) {
-        addMessage("Formato no soportado. Usa archivos CSV o Excel.", "bot");
+        addMessage("Formato no soportado. Usa archivos CSV, Excel, PDF o Word.", "bot");
         event.target.value = "";
         return;
     }
@@ -811,6 +811,14 @@ async function handleFileUpload(event) {
 
         if (!response.ok) {
             addMessage(`Error al analizar el archivo: ${data.error || "Error desconocido."}`, "bot");
+            return;
+        }
+
+        if (data.status === "rag_only") {
+            // For PDF/DOCX, we don't show the full dashboard, just a confirmation
+            setDatasetState("Documento activo", "success");
+            setText("selected-file-label", data.file_name, data.file_name);
+            addMessage(`¡Documento cargado correctamente! Ahora puedes hacerme preguntas sobre su contenido.`, "bot");
             return;
         }
 
