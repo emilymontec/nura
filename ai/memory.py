@@ -1,6 +1,6 @@
 import re
-from typing import Dict, List
-
+from typing import Dict, List, Any
+from .vector_memory import vector_memory
 from chat.models import ChatMessage, ChatSession
 
 
@@ -173,11 +173,23 @@ class MemoryManager:
         session.dataset_context = context or {}
 
         dataset_history = list(session.dataset_history or [])
+        file_name = context.get("file_name", "dataset")
         snapshot = {
-            "file_name": context.get("file_name", "dataset"),
+            "file_name": file_name,
             "rows": context.get("summary", {}).get("rows", 0),
             "columns": context.get("summary", {}).get("columns", 0),
         }
+        
+        # Guardar metadatos y análisis en memoria vectorial
+        try:
+            summary_text = f"Dataset: {file_name}. Resumen: {context.get('business_context', '')}. Sector: {context.get('industry', '')}."
+            vector_memory.store_dataset_meta(session_id, file_name, summary_text)
+            
+            if context.get("ai_report"):
+                vector_memory.store_analysis(session_id, file_name, context.get("ai_report"))
+        except Exception as e:
+            print(f"[MemoryManager] Error guardando análisis en memoria vectorial: {e}")
+
         if not dataset_history or dataset_history[-1] != snapshot:
             dataset_history.append(snapshot)
         session.dataset_history = dataset_history[-self.MAX_DATASETS :]
@@ -189,7 +201,13 @@ class MemoryManager:
 
     def add_message(self, session_id: str, role: str, content: str):
         session = self._get_session(session_id)
-        ChatMessage.objects.create(session=session, role=role, content=content)
+        msg = ChatMessage.objects.create(session=session, role=role, content=content)
+
+        # Guardar en memoria vectorial para largo plazo
+        try:
+            vector_memory.store_conversation(session_id, role, content, str(msg.id))
+        except Exception as e:
+            print(f"[MemoryManager] Error en memoria vectorial: {e}")
 
         decision_candidate = self._extract_decision_candidate(role, content)
         if decision_candidate:
@@ -241,6 +259,18 @@ class MemoryManager:
                 for item in session.dataset_history[-self.MAX_DATASETS :]
             ]
             sections.append("Datasets recordados:\n" + "\n".join(dataset_lines))
+
+        # Recuperar información de la memoria vectorial (largo plazo)
+        try:
+            vector_results = vector_memory.query_memory(question)
+            if vector_results["conversations"]:
+                sections.append("Recuerdos de charlas pasadas:\n" + "\n".join([f"- {c}" for c in vector_results["conversations"]]))
+            if vector_results["analyses"]:
+                sections.append("Análisis previos relacionados:\n" + "\n".join([f"- {a}" for a in vector_results["analyses"]]))
+            if vector_results["datasets"]:
+                sections.append("Información de archivos antiguos:\n" + "\n".join([f"- {d}" for d in vector_results["datasets"]]))
+        except Exception as e:
+            print(f"[MemoryManager] Error consultando memoria vectorial: {e}")
 
         if relevant_messages:
             relevant_lines = [

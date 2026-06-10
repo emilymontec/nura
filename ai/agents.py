@@ -22,9 +22,9 @@ AGENT_REGISTRY = {
     "context": AgentProfile(
         key="context",
         name="Asistente de Memoria",
-        focus="recordar lo que hablamos antes y dar continuidad a la charla",
-        goal="asegurar que la conversación fluya sin que tengas que repetir las cosas",
-        triggers=("antes", "anterior", "dijiste", "hablamos", "recuerda", "contexto", "referias"),
+        focus="recordar lo que hablamos antes, buscar en archivos antiguos y dar continuidad a la charla",
+        goal="asegurar que la conversación fluya y que NURA recuerde detalles de otros chats o archivos pasados",
+        triggers=("antes", "anterior", "dijiste", "hablamos", "recuerda", "contexto", "referias", "archivo antiguo", "otro chat", "pasado"),
         requires_dataset=False,
         priority=100,
     ),
