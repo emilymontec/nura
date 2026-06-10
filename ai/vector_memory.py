@@ -1,78 +1,112 @@
 # ai/vector_memory.py
 import os
-import chromadb
-from chromadb.utils import embedding_functions
+import json
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from typing import List, Dict, Any, Optional
 
 class VectorMemory:
-    """Vector-based memory for NURA using ChromaDB."""
+    """Vector-based memory for NURA using TF-IDF (extremely stable and lightweight)."""
     
-    def __init__(self, db_path: str = "nura_memory"):
-        self.client = chromadb.PersistentClient(path=db_path)
-        # Using default embedding function (sentence-transformers/all-MiniLM-L6-v2)
-        self.ef = embedding_functions.DefaultEmbeddingFunction()
+    def __init__(self, db_path: str = "nura_memory_v3"):
+        self.db_path = db_path
+        if not os.path.exists(db_path):
+            os.makedirs(db_path)
+            
+        self.meta_file = os.path.join(db_path, "metadata.json")
         
-        # Collections for different types of memory
-        self.conversations = self.client.get_or_create_collection(
-            name="conversations", 
-            embedding_function=self.ef
-        )
-        self.analyses = self.client.get_or_create_collection(
-            name="analyses", 
-            embedding_function=self.ef
-        )
-        self.datasets = self.client.get_or_create_collection(
-            name="datasets", 
-            embedding_function=self.ef
-        )
+        # Initialize TF-IDF Vectorizer
+        self.vectorizer = TfidfVectorizer(stop_words=None) # We use our own logic or keep it simple
+        
+        # Load or create metadata
+        if os.path.exists(self.meta_file):
+            with open(self.meta_file, 'r', encoding='utf-8') as f:
+                self.metadata = json.load(f)
+        else:
+            self.metadata = []
+
+    def _save(self):
+        """Save metadata to disk."""
+        with open(self.meta_file, 'w', encoding='utf-8') as f:
+            json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+
+    def _add_to_index(self, content: str, meta: Dict[str, Any]):
+        """Helper to add content and metadata."""
+        try:
+            self.metadata.append({
+                "content": content,
+                "meta": meta
+            })
+            self._save()
+        except Exception as e:
+            print(f"[VectorMemory] Error adding to memory: {e}")
 
     def store_conversation(self, session_id: str, role: str, content: str, message_id: str):
-        """Store a chat message in vector memory."""
-        self.conversations.add(
-            ids=[f"msg_{message_id}"],
-            documents=[content],
-            metadatas=[{"session_id": session_id, "role": role, "type": "chat"}]
-        )
+        """Store a chat message in memory."""
+        self._add_to_index(content, {
+            "session_id": session_id, 
+            "role": role, 
+            "type": "chat",
+            "message_id": message_id
+        })
 
     def store_analysis(self, session_id: str, file_name: str, analysis_text: str):
-        """Store a business analysis summary in vector memory."""
-        self.analyses.add(
-            ids=[f"analysis_{session_id}_{file_name}"],
-            documents=[analysis_text],
-            metadatas=[{"session_id": session_id, "file_name": file_name, "type": "analysis"}]
-        )
+        """Store a business analysis summary in memory."""
+        self._add_to_index(analysis_text, {
+            "session_id": session_id, 
+            "file_name": file_name, 
+            "type": "analysis"
+        })
 
     def store_dataset_meta(self, session_id: str, file_name: str, meta_description: str):
         """Store dataset metadata/summary for long-term recall."""
-        self.datasets.add(
-            ids=[f"dataset_{session_id}_{file_name}"],
-            documents=[meta_description],
-            metadatas=[{"session_id": session_id, "file_name": file_name, "type": "dataset_meta"}]
-        )
+        self._add_to_index(meta_description, {
+            "session_id": session_id, 
+            "file_name": file_name, 
+            "type": "dataset_meta"
+        })
 
-    def query_memory(self, query: str, limit: int = 3, n_results: int = 3) -> Dict[str, List[Any]]:
-        """Search across all collections for relevant past information."""
+    def query_memory(self, query: str, n_results: int = 3) -> Dict[str, List[Any]]:
+        """Search across all stored data for relevant past information using TF-IDF similarity."""
         results = {
             "conversations": [],
             "analyses": [],
             "datasets": []
         }
         
+        if not self.metadata:
+            return results
+            
         try:
-            # Query conversations
-            chat_res = self.conversations.query(query_texts=[query], n_results=n_results)
-            if chat_res["documents"]:
-                results["conversations"] = chat_res["documents"][0]
+            # Prepare documents for TF-IDF
+            documents = [item["content"] for item in self.metadata]
+            
+            # Fit and transform
+            tfidf_matrix = self.vectorizer.fit_transform(documents)
+            query_vec = self.vectorizer.transform([query])
+            
+            # Calculate similarities
+            similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
+            
+            # Get top N indices
+            top_indices = similarities.argsort()[-n_results:][::-1]
+            
+            for idx in top_indices:
+                if similarities[idx] < 0.1: # Threshold to avoid irrelevant matches
+                    continue
+                    
+                item = self.metadata[idx]
+                content = item["content"]
+                m_type = item["meta"].get("type")
                 
-            # Query analyses
-            anal_res = self.analyses.query(query_texts=[query], n_results=n_results)
-            if anal_res["documents"]:
-                results["analyses"] = anal_res["documents"][0]
-                
-            # Query datasets
-            data_res = self.datasets.query(query_texts=[query], n_results=n_results)
-            if data_res["documents"]:
-                results["datasets"] = data_res["documents"][0]
+                if m_type == "chat":
+                    results["conversations"].append(content)
+                elif m_type == "analysis":
+                    results["analyses"].append(content)
+                elif m_type == "dataset_meta" or m_type == "rag_document":
+                    results["datasets"].append(content)
+                    
         except Exception as e:
             print(f"[VectorMemory] Error querying: {e}")
             

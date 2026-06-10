@@ -41,11 +41,11 @@ class RAGAnalytics:
                 # Chunk content for better retrieval
                 chunks = self._chunk_text(content)
                 for i, chunk in enumerate(chunks):
-                    vector_memory.conversations.add(
-                        ids=[f"rag_{session_id}_{file_name}_{i}"],
-                        documents=[chunk],
-                        metadatas=[{"session_id": session_id, "file_name": file_name, "type": "rag_document"}]
-                    )
+                    vector_memory._add_to_index(chunk, {
+                        "session_id": session_id, 
+                        "file_name": file_name, 
+                        "type": "rag_document"
+                    })
                 return {"status": "success", "message": f"Contenido de '{file_name}' indexado correctamente."}
             
         except Exception as e:
