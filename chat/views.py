@@ -96,17 +96,23 @@ def analyze_endpoint(request):
             memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
             
             score = safe_context['health'].get('health_score', 0)
-            score_str = f"{score:.2f}"
-            bot_msg1 = f"Analisis completado.\nArchivo: {safe_context['file_name']}\nSector detectado: {industry}\nRegistros: {safe_context['summary']['rows']}\nColumnas: {safe_context['summary']['columns']}\nRiesgo: {safe_context['health']['risk_level']}\nSalud: {score_str}"
+            score_str = f"{score:.0f}"
+            bot_msg1 = (
+                f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\n"
+                f"He detectado que tu negocio pertenece al sector de **{industry}**.\n"
+                f"Analicé un total de **{safe_context['summary']['rows']} filas** de información.\n"
+                f"En cuanto a la salud de tus datos, les doy una puntuación de **{score_str} sobre 100** "
+                f"(un nivel de riesgo **{safe_context['health']['risk_level'].lower()}**)."
+            )
             memory.add_message(session_id, "assistant", bot_msg1)
             
             if ai_report:
-                memory.add_message(session_id, "assistant", f"### Informe Ejecutivo de NURA ({industry})\n\n{ai_report}")
+                memory.add_message(session_id, "assistant", f"### 📝 Resumen Ejecutivo para ti\n\n{ai_report}")
             
             if insight_feed:
                 feed_items = []
                 for item in insight_feed:
-                    icon = "🔴" if item['color'] == 'red' else ("🟢" if item['color'] == 'green' else "🟡")
+                    icon = "💡" if item['color'] == 'green' else ("⚠️" if item['color'] == 'red' else "✨")
                     feed_items.append(f"{icon} **{item['category']}**: {item['message']}")
                 
                 feed_text = "\n".join(feed_items)
@@ -114,14 +120,14 @@ def analyze_endpoint(request):
                 # Formatear AI Cards para el chat
                 cards_text = ""
                 if ai_cards:
-                    cards_text = "\n\n**📊 AI Cards - Dashboard**\n"
+                    cards_text = "\n\n**📊 Puntos clave del negocio**\n"
                     for key, card in ai_cards.items():
                         cards_text += f"{card['icon']} **{card['title']}**: {card['value']} - {card['description']}\n"
                 
-                memory.add_message(session_id, "assistant", f"### 📱 Insight Feed (Proactivo)\n{feed_text}{cards_text}")
+                memory.add_message(session_id, "assistant", f"### 🚀 Descubrimientos Proactivos\n{feed_text}{cards_text}")
             elif insights:
                 insights_text = "\n- ".join(insights)
-                bot_msg2 = f"Insights iniciales para {industry}:\n- {insights_text}"
+                bot_msg2 = f"Aquí tienes algunas cosas interesantes que encontré en tu negocio ({industry}):\n- {insights_text}"
                 memory.add_message(session_id, "assistant", bot_msg2)
             
             return JsonResponse(safe_context)

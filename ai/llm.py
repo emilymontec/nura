@@ -102,7 +102,7 @@ def generate_ai_report(context_data: dict) -> str:
     
     try:
         return _run_completion(
-            system_message="Eres una analista senior de datos y respondes siempre en espanol.",
+            system_message="Eres NURA, una analista de negocios que habla de forma clara, cercana y sin tecnicismos.",
             prompt=prompt,
             temperature=0.3,
             tier="premium"
@@ -111,9 +111,9 @@ def generate_ai_report(context_data: dict) -> str:
         return f"Error al generar el reporte: {str(e)}"
 
 def _summarize_context(context: dict) -> str:
-    """Summarize context to drastically reduce tokens sent to the LLM."""
+    """Summarize context in human-friendly terms for the LLM."""
     if not context or not context.get("file_name"):
-        return "Sin dataset activo."
+        return "Actualmente no hay ningún archivo cargado. Estamos en modo de conversación general."
         
     summary = context.get("summary", {})
     insights = context.get("insights", [])
@@ -124,27 +124,27 @@ def _summarize_context(context: dict) -> str:
     anomalies = context.get("anomalies", [])
     
     lines = [
-        f"Archivo: {context.get('file_name')} ({summary.get('rows', 0)} filas, {summary.get('columns', 0)} cols)",
-        f"Sector Detectado: {industry}",
-        f"Contexto Empresarial: {business_context}",
-        f"Salud: {context.get('health', {}).get('health_score', 0)}/100"
+        f"Información del archivo: Se llama '{context.get('file_name')}' y tiene {summary.get('rows', 0)} registros.",
+        f"Giro del negocio: {industry}",
+        f"Lo que hace la empresa: {business_context}",
+        f"Salud de los datos: {context.get('health', {}).get('health_score', 0)} de 100 puntos."
     ]
     
     if anomalies:
-        lines.append(f"Anomalías: Se detectaron {len(anomalies)} registros anómalos (outliers).")
+        lines.append(f"Cosas raras: He visto {len(anomalies)} datos que parecen fuera de lugar o extraños.")
 
     if critical_vars:
         vars_str = ", ".join([v["column"] for v in critical_vars[:3]])
-        lines.append(f"Variables Críticas: {vars_str}")
+        lines.append(f"Temas importantes en los datos: {vars_str}")
         
     if forecasts:
         f_lines = []
         for col, f in forecasts.items():
-            f_lines.append(f"{col}: {f['expected_growth']}% crecimiento esperado")
-        lines.append("Predicciones: " + " | ".join(f_lines))
+            f_lines.append(f"{col} (podría subir un {f['expected_growth']}%)")
+        lines.append("Tendencia futura: " + " | ".join(f_lines))
 
     if insights:
-        lines.append("Insights principales:")
+        lines.append("Hallazgos curiosos:")
         for ins in insights[:4]:
             lines.append(f"- {ins}")
             
@@ -191,9 +191,11 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
         if selected_key in AGENT_REGISTRY:
             agent = AGENT_REGISTRY[selected_key]
             if not (agent.requires_dataset and not has_dataset):
-                # Usar un lambda/wrapper para pasar el tier="standard" a los agentes especialistas si fuese necesario
+                # Usar un lambda/wrapper para pasar el tier="standard" a los agentes especialistas
                 def run_specialist_callback(system_message, prompt, temperature=0.25):
-                    return _run_completion(system_message, prompt, temperature, tier="standard")
+                    # Forzamos un system message más humano incluso para los especialistas
+                    human_system = f"Eres {agent.name} de NURA. Hablas de forma clara, amable y sin tecnicismos."
+                    return _run_completion(human_system, prompt, temperature, tier="standard")
                     
                 return run_specialist_agent(agent, question, short_context, history, industry, run_specialist_callback)
                 
@@ -205,8 +207,8 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
         )
         return _run_completion(
             system_message=(
-                f"Eres NURA, una asistente de analitica de datos empresariales especializada en {industry}. "
-                "Respondes siempre en espanol, con claridad, precision y tono profesional."
+                f"Eres NURA, la asistente inteligente que ayuda a entender negocios en el sector de {industry}. "
+                "Tu objetivo es que cualquier persona entienda su empresa. Habla siempre de forma sencilla, humana y sin usar jerga técnica."
             ),
             prompt=prompt,
             temperature=0.4,
