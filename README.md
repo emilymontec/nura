@@ -12,7 +12,7 @@
 </p>
 
 <img src="https://img.shields.io/badge/backend-django-24c1ca?style=flat-square">
-<img src="https://img.shields.io/badge/frontend-HMTML5/CSS3/JavaScript-da30a2?style=flat-square">
+<img src="https://img.shields.io/badge/frontend-html5/css3/javaScript-da30a2?style=flat-square">
 <img src="https://img.shields.io/badge/database-supabase-0950cb?style=flat-square">
 <img src="https://img.shields.io/badge/ai-multi--llm-b156ff?style=flat-square">
 
