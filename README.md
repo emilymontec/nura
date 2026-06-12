@@ -34,8 +34,7 @@ NURA aims to bridge the gap between data and decision-making, enabling any user,
 
 </div>
 
-> Home capture
-<!--![dashboard](file_docs/dashboard.jpeg)-->
+![home](readme_assets/home.png)
 
 ---
 
