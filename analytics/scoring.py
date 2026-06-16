@@ -11,13 +11,22 @@ def health_score(summary: Dict[str, int]) -> float:
         Float health score.
     """
     rows = summary.get("rows", 0)
+    cols = summary.get("columns", 0)
+    total_cells = rows * cols if rows > 0 and cols > 0 else 1
     total_missing = summary.get("total_missing", 0)
     duplicate_rows = summary.get("duplicate_rows", 0)
+    
     if rows == 0:
         return 0.0
-    # Penalize missing and duplicate rows
-    penalty = (total_missing + duplicate_rows * rows) / rows
-    score = max(0.0, 100.0 - penalty * 10)
+        
+    # Calculate percentage of missing cells (0-100)
+    missing_percent = (total_missing / total_cells) * 100
+    # Calculate percentage of duplicate rows (0-100)
+    duplicate_percent = (duplicate_rows / rows) * 100
+    
+    # Penalize: each 1% missing = 0.5 points lost, each 1% duplicate = 0.3 points lost
+    penalty = (missing_percent * 0.5) + (duplicate_percent * 0.3)
+    score = max(0.0, 100.0 - penalty)
     return round(score, 2)
 
 def risk_level(score: float) -> str:

@@ -7,12 +7,13 @@ from chat.models import ChatMessage, ChatSession
 class MemoryManager:
     """Persistent conversational memory with compact prompt retrieval."""
 
-    RECENT_MESSAGE_LIMIT = 6
-    RELEVANT_MESSAGE_LIMIT = 4
-    SUMMARY_MESSAGE_LIMIT = 12
-    MAX_SUMMARY_CHARS = 2000
-    MAX_DECISIONS = 8
-    MAX_DATASETS = 5
+    RECENT_MESSAGE_LIMIT = 8  # Increased to keep more recent history
+    RELEVANT_MESSAGE_LIMIT = 3  # Reduced to save tokens
+    SUMMARY_MESSAGE_LIMIT = 10
+    MAX_SUMMARY_CHARS = 1500  # Reduced to save tokens
+    MAX_DECISIONS = 5
+    MAX_DATASETS = 3
+    MAX_CONTEXT_TOTAL_CHARS = 12000  # Limit total context to prevent token overflow
     STOPWORDS = {
         "a",
         "al",
@@ -291,7 +292,16 @@ class MemoryManager:
         ]
         sections.append("Mensajes recientes:\n" + "\n".join(recent_lines))
 
-        return "\n\n".join(section for section in sections if section).strip()
+        # Combine all sections and truncate if needed to prevent token overflow
+        full_context = "\n\n".join(section for section in sections if section).strip()
+        if len(full_context) > self.MAX_CONTEXT_TOTAL_CHARS:
+            full_context = full_context[-self.MAX_CONTEXT_TOTAL_CHARS :]
+            # Ensure we don't cut off in the middle of a word
+            last_space = full_context.find(" ", 100)
+            if last_space > 0:
+                full_context = "[...contexto truncado...]" + full_context[last_space:]
+        
+        return full_context
 
 
 memory = MemoryManager()

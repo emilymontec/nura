@@ -48,6 +48,15 @@ class LLMRouter:
     def generate(self, messages: list, tier: str = "standard", temperature: float = 0.4, max_tokens: int = None) -> str:
         sequence = self.tiers.get(tier, self.tiers["standard"])
         
+        # Set reasonable default max tokens based on tier - increased for more complete responses
+        if max_tokens is None:
+            if tier == "premium":
+                max_tokens = 4096
+            elif tier == "fast":
+                max_tokens = 1024
+            else:
+                max_tokens = 2048
+        
         for provider, model in sequence:
             api_key = self.keys.get(provider)
             if not api_key:
@@ -64,13 +73,12 @@ class LLMRouter:
             payload = {
                 "model": model,
                 "messages": messages,
-                "temperature": temperature
+                "temperature": temperature,
+                "max_tokens": max_tokens
             }
-            if max_tokens:
-                payload["max_tokens"] = max_tokens
-                
+            
             try:
-                response = requests.post(self.endpoints[provider], headers=headers, json=payload, timeout=25)
+                response = requests.post(self.endpoints[provider], headers=headers, json=payload, timeout=45)
                 if response.status_code == 200:
                     return response.json()["choices"][0]["message"]["content"]
                 else:
@@ -120,7 +128,7 @@ def _summarize_context(context: dict) -> str:
         content = context.get("content", "")
         return (
             f"Documento cargado: '{context.get('file_name')}'\n"
-            f"Contenido del documento:\n{content}"
+            f"Contenido del documento (primera parte):\n{content[:8000]}"
         )
 
     summary = context.get("summary", {})
@@ -130,56 +138,81 @@ def _summarize_context(context: dict) -> str:
     critical_vars = context.get("critical_variables", [])
     forecasts = context.get("forecasts", {})
     anomalies = context.get("anomalies", [])
+    fraud_signals = context.get("fraud_signals", [])
     columns = context.get("columns", {})
     preview = context.get("preview", [])
+    health = context.get("health", {})
+    correlations = context.get("correlations", [])
+    kpis = context.get("kpis", [])
 
     lines = [
-        f"Información del archivo: Se llama '{context.get('file_name')}' y tiene {summary.get('rows', 0)} registros.",
-        f"Giro del negocio: {industry}",
-        f"Lo que hace la empresa: {business_context}",
-        f"Salud de los datos: {context.get('health', {}).get('health_score', 0)} de 100 puntos.",
+        f"Información del archivo: Se llama '{context.get('file_name')}' y tiene {summary.get('rows', 0)} filas y {summary.get('columns', 0)} columnas de información.",
+        f"Sector del negocio: {industry}",
+        f"Descripción del negocio: {business_context}",
+        f"Salud de los datos: {health.get('health_score', 0)} de 100 puntos (riesgo {health.get('risk_level', 'desconocido')}).",
     ]
 
-    # Incluir nombres de columnas y sus tipos
+    # Incluir nombres de columnas y sus tipos semánticos
     if columns:
         col_lines = []
         for col_name, col_info in columns.items():
-            col_lines.append(f"  - {col_name} ({col_info.get('semantic_type', col_info.get('dtype', 'desconocido'))})")
-        lines.append("Columnas del archivo:\n" + "\n".join(col_lines))
+            sem_type = col_info.get('semantic_type', col_info.get('dtype', 'desconocido'))
+            missing = col_info.get('missing', 0)
+            unique = col_info.get('unique', 0)
+            col_lines.append(f"  - {col_name}: {sem_type} (valores faltantes: {missing}, valores únicos: {unique})")
+        lines.append("Columnas del dataset:\n" + "\n".join(col_lines))
+
+    # Incluir KPIs
+    if kpis:
+        kpi_lines = []
+        for kpi in kpis:
+            kpi_lines.append(f"  - {kpi['label']}: {kpi['value']}")
+        lines.append("KPIs principales:\n" + "\n".join(kpi_lines))
 
     # Incluir vista previa de los datos (primeras filas)
     if preview:
-        preview_lines = ["Vista previa de los datos (primeras filas):"]
+        preview_lines = ["Vista previa de los datos (primeras 8 filas):"]
         col_names = list(preview[0].keys()) if preview else []
         if col_names:
-            preview_lines.append("  " + " | ".join(str(c) for c in col_names))
+            preview_lines.append("  | " + " | ".join(str(c) for c in col_names) + " |")
             for row in preview[:8]:
                 vals = []
                 for c in col_names:
                     v = row.get(c)
                     vals.append(str(v) if v is not None else "")
-                preview_lines.append("  " + " | ".join(vals))
+                preview_lines.append("  | " + " | ".join(vals) + " |")
         lines.append("\n".join(preview_lines))
 
+    # Incluir correlaciones importantes
+    if correlations:
+        corr_lines = ["Relaciones importantes entre variables:"]
+        for corr in correlations[:5]:
+            corr_lines.append(f"  - {corr['col1']} ↔ {corr['col2']}: {corr['strength']} {corr['direction']} (valor: {corr['correlation']})")
+        lines.append("\n".join(corr_lines))
+
     if anomalies:
-        lines.append(f"Cosas raras: He visto {len(anomalies)} datos que parecen fuera de lugar o extraños.")
+        lines.append(f"Valores inusuales detectados: {len(anomalies)} registros que podrían ser errores o casos especiales.")
+        
+    if fraud_signals:
+        lines.append(f"Alertas de posible fraude o error: {', '.join(fraud_signals[:5])}")
 
     if critical_vars:
-        vars_str = ", ".join([v["column"] for v in critical_vars[:3]])
-        lines.append(f"Temas importantes en los datos: {vars_str}")
+        vars_str = ", ".join([f"{v['column']} (impacto: {v['importance']})" for v in critical_vars[:3]])
+        lines.append(f"Variables críticas para el negocio: {vars_str}")
 
     if forecasts:
-        f_lines = []
+        f_lines = ["Tendencias futuras esperadas:"]
         for col, f in forecasts.items():
-            f_lines.append(f"{col} (podría subir un {f['expected_growth']}%)")
-        lines.append("Tendencia futura: " + " | ".join(f_lines))
+            growth = f.get('expected_growth', 'desconocido')
+            f_lines.append(f"  - {col}: se espera un cambio de {growth}%")
+        lines.append("\n".join(f_lines))
 
     if insights:
-        lines.append("Hallazgos curiosos:")
-        for ins in insights[:4]:
-            lines.append(f"- {ins}")
+        lines.append("Hallazgos clave del análisis:")
+        for ins in insights[:6]:
+            lines.append(f"  - {ins}")
 
-    return "\n".join(lines)
+    return "\n\n".join(lines)
 
 def route_intent(question: str, context: dict, history: str) -> str:
     """Uses a fast LLM call to decide which agent should handle the intent."""

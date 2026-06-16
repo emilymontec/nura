@@ -818,18 +818,25 @@ async function handleFileUpload(event) {
             // For PDF/DOCX, we don't show the full dashboard, just a confirmation
             setDatasetState("Documento activo", "success");
             setText("selected-file-label", data.file_name, data.file_name);
-            addMessage(`¡Documento cargado correctamente! Ahora puedes hacerme preguntas sobre su contenido.`, "bot");
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => addMessage(msg.content, msg.role === "user" ? "user" : "bot"));
+            } else {
+                addMessage(`¡Documento cargado correctamente! Ahora puedes hacerme preguntas sobre su contenido.`, "bot");
+            }
             return;
         }
 
         renderAnalysis(data);
-        addMessage(
-            `¡Análisis completado!\nArchivo: ${data.file_name}\nFilas: ${data.summary.rows}\nColumnas: ${data.summary.columns}\nRiesgo: ${data.health.risk_level}\nCalidad de datos: ${formatDecimal(data.health.health_score)}`,
-            "bot"
-        );
-
-        if (data.insights?.length) {
-            addMessage(`He encontrado esto:\n- ${data.insights.join("\n- ")}`, "bot");
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => addMessage(msg.content, msg.role === "user" ? "user" : "bot"));
+        } else {
+            addMessage(
+                `¡Análisis completado!\nArchivo: ${data.file_name}\nFilas: ${data.summary.rows}\nColumnas: ${data.summary.columns}\nRiesgo: ${data.health.risk_level}\nCalidad de datos: ${formatDecimal(data.health.health_score)}`,
+                "bot"
+            );
+            if (data.insights?.length) {
+                addMessage(`He encontrado esto:\n- ${data.insights.join("\n- ")}`, "bot");
+            }
         }
     } catch (error) {
         const typingEl = document.getElementById(typingId);

@@ -6,6 +6,7 @@ from pypdf import PdfReader
 from docx import Document
 from typing import List, Dict, Any, Optional
 from ai.vector_memory import vector_memory
+from analytics.analyzer import load_csv
 
 class RAGAnalytics:
     """RAG (Retrieval-Augmented Generation) engine for documents and datasets."""
@@ -17,8 +18,13 @@ class RAGAnalytics:
         content = ""
 
         try:
-            # Read file into BytesIO to avoid consuming the cursor for downstream consumers
-            raw_bytes = file_obj.read()
+            # Save original position, read file, then reset pointer back to original position
+            original_position = file_obj.tell()
+            try:
+                raw_bytes = file_obj.read()
+            finally:
+                file_obj.seek(original_position)
+                
             buffer = io.BytesIO(raw_bytes)
 
             if suffix == ".pdf":
@@ -34,15 +40,11 @@ class RAGAnalytics:
                 doc = Document(buffer)
                 content = "\n".join([p.text for p in doc.paragraphs])
 
-            elif suffix in [".xlsx", ".xls"]:
+            elif suffix in [".xlsx", ".xls", ".csv"]:
+                # Use the robust load_csv function from analyzer.py
                 buffer.seek(0)
-                df = pd.read_excel(buffer)
-                content = f"Archivo Excel: {file_name}\nColumnas: {', '.join(df.columns)}\nResumen:\n{df.describe().to_string()}\nVista previa:\n{df.head(10).to_string()}"
-
-            elif suffix == ".csv":
-                buffer.seek(0)
-                df = pd.read_csv(buffer)
-                content = f"Archivo CSV: {file_name}\nColumnas: {', '.join(df.columns)}\nVista previa:\n{df.head(10).to_string()}"
+                df = load_csv(buffer)
+                content = f"Archivo: {file_name}\nColumnas: {', '.join(df.columns)}\nResumen estadístico:\n{df.describe(include='all').to_string()}\nVista previa (primeras 10 filas):\n{df.head(10).to_string()}"
 
             if content:
                 chunks = self._chunk_text(content)

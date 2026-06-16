@@ -41,6 +41,7 @@ def analyze_endpoint(request):
         
         # Guardar mensaje de usuario de carga de archivo inmediatamente
         memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
+        new_messages = []
         
         try:
             # Solo intentamos análisis profundo de datos si es CSV o Excel
@@ -56,7 +57,8 @@ def analyze_endpoint(request):
                 memory.store_dataset_context(session_id, doc_context)
                 bot_msg_rag = f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras."
                 memory.add_message(session_id, "assistant", bot_msg_rag)
-                return JsonResponse({"status": "rag_only", "file_name": file.name})
+                new_messages.append({"role": "assistant", "content": bot_msg_rag})
+                return JsonResponse({"status": "rag_only", "file_name": file.name, "messages": new_messages})
 
             # Re-read the file into a buffer since RAG engine already consumed it
             file.seek(0)
@@ -128,9 +130,12 @@ def analyze_endpoint(request):
                 f"(un nivel de riesgo **{safe_context['health']['risk_level'].lower()}**)."
             )
             memory.add_message(session_id, "assistant", bot_msg1)
+            new_messages.append({"role": "assistant", "content": bot_msg1})
             
             if ai_report:
-                memory.add_message(session_id, "assistant", f"### 📝 Resumen Ejecutivo para ti\n\n{ai_report}")
+                ai_report_msg = f"### 📝 Resumen Ejecutivo para ti\n\n{ai_report}"
+                memory.add_message(session_id, "assistant", ai_report_msg)
+                new_messages.append({"role": "assistant", "content": ai_report_msg})
             
             if insight_feed:
                 feed_items = []
@@ -147,12 +152,16 @@ def analyze_endpoint(request):
                     for key, card in ai_cards.items():
                         cards_text += f"{card['icon']} **{card['title']}**: {card['value']} - {card['description']}\n"
                 
-                memory.add_message(session_id, "assistant", f"### 🚀 Descubrimientos Proactivos\n{feed_text}{cards_text}")
+                insights_msg = f"### 🚀 Descubrimientos Proactivos\n{feed_text}{cards_text}"
+                memory.add_message(session_id, "assistant", insights_msg)
+                new_messages.append({"role": "assistant", "content": insights_msg})
             elif insights:
                 insights_text = "\n- ".join(insights)
                 bot_msg2 = f"Aquí tienes algunas cosas interesantes que encontré en tu negocio ({industry}):\n- {insights_text}"
                 memory.add_message(session_id, "assistant", bot_msg2)
+                new_messages.append({"role": "assistant", "content": bot_msg2})
             
+            safe_context["messages"] = new_messages
             return JsonResponse(safe_context)
         except Exception as e:
             err = f"Error al analizar el archivo: {str(e)}"
