@@ -1,6 +1,4 @@
 # ai/vector_memory.py
-import os
-import json
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -9,27 +7,9 @@ from typing import List, Dict, Any, Optional
 class VectorMemory:
     """Vector-based memory for NURA using TF-IDF (extremely stable and lightweight)."""
     
-    def __init__(self, db_path: str = "nura_memory_v3"):
-        self.db_path = db_path
-        self.meta_file = os.path.join(db_path, "metadata.json")
+    def __init__(self):
         self.vectorizer = TfidfVectorizer(stop_words=None)
-        self.metadata = self._load_metadata()
-
-    def _ensure_dir(self):
-        if not os.path.exists(self.db_path):
-            os.makedirs(self.db_path, exist_ok=True)
-
-    def _load_metadata(self):
-        if os.path.exists(self.meta_file):
-            with open(self.meta_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return []
-
-    def _save(self):
-        """Save metadata to disk."""
-        self._ensure_dir()
-        with open(self.meta_file, 'w', encoding='utf-8') as f:
-            json.dump(self.metadata, f, ensure_ascii=False, indent=2)
+        self.metadata = []
 
     def _add_to_index(self, content: str, meta: Dict[str, Any]):
         """Helper to add content and metadata."""
@@ -38,7 +18,6 @@ class VectorMemory:
                 "content": content,
                 "meta": meta
             })
-            self._save()
         except Exception as e:
             print(f"[VectorMemory] Error adding to memory: {e}")
 
