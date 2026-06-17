@@ -40,8 +40,11 @@ def analyze_endpoint(request):
         rag_result = rag_analytics.process_file(file, session_id)
         
         # Guardar mensaje de usuario de carga de archivo inmediatamente
+        session = memory._get_session(session_id)
+        # Eliminar mensajes antiguos para evitar duplicados
+        session.messages.all().delete()
+        
         memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
-        new_messages = []
         
         try:
             # Solo intentamos análisis profundo de datos si es CSV o Excel
@@ -55,10 +58,9 @@ def analyze_endpoint(request):
                     "content": rag_result.get("content", "")[:5000],
                 }
                 memory.store_dataset_context(session_id, doc_context)
-                bot_msg_rag = f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras."
-                memory.add_message(session_id, "assistant", bot_msg_rag)
-                new_messages.append({"role": "assistant", "content": bot_msg_rag})
-                return JsonResponse({"status": "rag_only", "file_name": file.name, "messages": new_messages})
+                bot_msg = f"He recibido tu documento '{file.name}'. Ya lo he leído y guardado en mi memoria; puedes hacerme preguntas sobre su contenido cuando quieras."
+                memory.add_message(session_id, "assistant", bot_msg)
+                return JsonResponse({"status": "rag_only", "file_name": file.name, "response": bot_msg})
 
             # Re-read the file into a buffer since RAG engine already consumed it
             file.seek(0)
@@ -116,52 +118,45 @@ def analyze_endpoint(request):
             ai_report = None
             try:
                 ai_report = generate_ai_report(safe_context)
-                safe_context["ai_report"] = ai_report
             except Exception as e:
                 print(f"[NURA] Error al generar reporte IA: {e}")
 
             score = safe_context['health'].get('health_score', 0)
             score_str = f"{score:.0f}"
-            bot_msg1 = (
-                f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\n"
-                f"He detectado que tu negocio pertenece al sector de **{industry}**.\n"
-                f"Analicé un total de **{safe_context['summary']['rows']} filas** de información.\n"
-                f"En cuanto a la salud de tus datos, les doy una puntuación de **{score_str} sobre 100** "
-                f"(un nivel de riesgo **{safe_context['health']['risk_level'].lower()}**)."
-            )
-            memory.add_message(session_id, "assistant", bot_msg1)
-            new_messages.append({"role": "assistant", "content": bot_msg1})
+            
+            # Combine all messages into one
+            message_parts = []
+            message_parts.append(f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\nHe detectado que tu negocio pertenece al sector de **{industry}**.\nAnalicé un total de **{safe_context['summary']['rows']} filas** de información.\nEn cuanto a la salud de tus datos, les doy una puntuación de **{score_str} sobre 100** (un nivel de riesgo **{safe_context['health']['risk_level'].lower()}**).")
             
             if ai_report:
-                ai_report_msg = f"### 📝 Resumen Ejecutivo para ti\n\n{ai_report}"
-                memory.add_message(session_id, "assistant", ai_report_msg)
-                new_messages.append({"role": "assistant", "content": ai_report_msg})
+                message_parts.append(f"\n\n📝 Resumen Ejecutivo para ti:\n{ai_report}")
             
             if insight_feed:
                 feed_items = []
                 for item in insight_feed:
                     icon = "💡" if item['color'] == 'green' else ("⚠️" if item['color'] == 'red' else "✨")
                     feed_items.append(f"{icon} **{item['category']}**: {item['message']}")
-                
                 feed_text = "\n".join(feed_items)
+                message_parts.append(f"\n\n🚀 Descubrimientos Proactivos:\n{feed_text}")
                 
-                # Formatear AI Cards para el chat
-                cards_text = ""
+                # Add AI Cards
                 if ai_cards:
-                    cards_text = "\n\n**📊 Puntos clave del negocio**\n"
+                    cards_text = "\n\n📊 Puntos clave del negocio:\n"
                     for key, card in ai_cards.items():
                         cards_text += f"{card['icon']} **{card['title']}**: {card['value']} - {card['description']}\n"
-                
-                insights_msg = f"### 🚀 Descubrimientos Proactivos\n{feed_text}{cards_text}"
-                memory.add_message(session_id, "assistant", insights_msg)
-                new_messages.append({"role": "assistant", "content": insights_msg})
+                    message_parts.append(cards_text)
             elif insights:
-                insights_text = "\n- ".join(insights)
-                bot_msg2 = f"Aquí tienes algunas cosas interesantes que encontré en tu negocio ({industry}):\n- {insights_text}"
-                memory.add_message(session_id, "assistant", bot_msg2)
-                new_messages.append({"role": "assistant", "content": bot_msg2})
+                insights_text = "\n".join([f"- {insight}" for insight in insights])
+                message_parts.append(f"\n\nAquí tienes algunas cosas interesantes que encontré:\n{insights_text}")
             
-            safe_context["messages"] = new_messages
+            full_response = "\n".join(message_parts)
+            memory.add_message(session_id, "assistant", full_response)
+            safe_context["response"] = full_response
+            
+            # Debug print to verify response
+            print(f"[DEBUG] Safe context keys: {list(safe_context.keys())}")
+            print(f"[DEBUG] Response length: {len(full_response)}")
+            
             return JsonResponse(safe_context)
         except Exception as e:
             err = f"Error al analizar el archivo: {str(e)}"
