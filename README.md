@@ -34,7 +34,7 @@ NURA aims to bridge the gap between data and decision-making, enabling any user,
 
 </div>
 
-![home](readme_assets/home.png)
+![home](docs/readme_assets/home.png)
 
 ---
 
