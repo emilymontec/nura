@@ -68,7 +68,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'nura.wsgi.application'
 
 SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL', '').strip()
-USE_SQLITE_LOCAL = os.getenv('USE_SQLITE_LOCAL', 'True').lower() == 'true'
+USE_SQLITE_LOCAL = os.getenv('USE_SQLITE_LOCAL', 'False').lower() == 'true'
 SQLITE_DB_PATH = os.getenv('SQLITE_DB_PATH', str(BASE_DIR / 'db.sqlite3'))
 
 if USE_SQLITE_LOCAL:
