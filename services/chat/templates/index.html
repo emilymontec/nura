@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#06080d">
+  <title>NURA | Inteligencia conversacional para analisis empresarial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400,500&family=Space+Grotesk:wght@300,400,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles/main.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="app">
+    {% include "views/chat.html" %}
+  </div>
+
+  <script>
+    window.NURA_CONFIG = {
+      apiBaseUrl: "/api",
+    };
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initializeDashboard();
+    });
+  </script>
+  <script src="{% static 'scripts/main.js' %}"></script>
+</body>
+</html>
