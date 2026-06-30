@@ -90,6 +90,50 @@ export default function AnalyticsPanel({ datasetContext, onClose }) {
         );
       }
 
+      if (chart.type === 'temporal' && chart.labels && chart.values) {
+        const data = {
+          labels: chart.labels,
+          datasets: [
+            {
+              label: chart.column,
+              data: chart.values,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              fill: true,
+              tension: 0.4
+            }
+          ]
+        };
+
+        const options = {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            x: { 
+              grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+              ticks: { color: '#ccc', maxTicksLimit: 8 }
+            },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#ccc' } }
+          }
+        };
+
+        let title = chart.column;
+        if (chart.date_column) {
+          title = `${chart.column} vs ${chart.date_column}`;
+        }
+
+        return (
+          <div key={index} className="chart-card">
+            <h4>{title}</h4>
+            <div className="chart-canvas-wrapper">
+              <Line data={data} options={options} />
+            </div>
+          </div>
+        );
+      }
+
       return null;
     });
   };

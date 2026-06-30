@@ -537,17 +537,23 @@ function renderCharts(charts) {
 
     charts.forEach((chartData, index) => {
         const chartId = `chart-${index}`;
-        const card = document.createElement("div");
-        card.className = "chart-card";
+        const card = document.createElement('div');
+        card.className = 'chart-card';
+        
+        let title = escapeHtml(chartData.column);
+        if (chartData.type === "temporal" && chartData.date_column) {
+            title = `${title} vs ${escapeHtml(chartData.date_column)}`;
+        }
+        
         card.innerHTML = `
-            <h4>${escapeHtml(chartData.column)}</h4>
+            <h4>${title}</h4>
             <div class="chart-canvas-wrapper">
                 <canvas id="${chartId}"></canvas>
             </div>
         `;
         container.appendChild(card);
 
-        const ctx = document.getElementById(chartId).getContext("2d");
+        const ctx = document.getElementById(chartId).getContext('2d');
         let chart;
 
         if (chartData.type === "categorical") {
@@ -595,6 +601,34 @@ function renderCharts(charts) {
                     scales: {
                         y: { grid: { color: "rgba(255,255,255,0.05)" } },
                         x: { display: false }
+                    }
+                }
+            });
+        } else if (chartData.type === "temporal") {
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: escapeHtml(chartData.column),
+                        data: chartData.values,
+                        borderColor: "#10b981",
+                        backgroundColor: "rgba(16, 185, 129, 0.1)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: "rgba(255,255,255,0.05)" } },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 8 }
+                        }
                     }
                 }
             });

@@ -236,25 +236,117 @@ def get_preview(df: pd.DataFrame, n: int = 10) -> List[Dict[str, Any]]:
 
 def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     """Detect suitable columns for charts and return their data.
+    - Exclude identifiers
+    - Prioritize useful business data
     - Categorical: Top 5 categories for bar chart.
     - Numeric: Values for a histogram or line chart.
+    - Temporal: Trends over time.
     """
     charts = []
     
-    # Numeric distributions
-    numeric_cols = df.select_dtypes(include=[np.number]).columns[:3] # Limit to 3
+    def is_likely_identifier(col_name: str) -> bool:
+        col_lower = col_name.lower()
+        id_keywords = ["id", "codigo", "code", "sku", "uuid", "pk", "fk", "key", "llave"]
+        return any(keyword in col_lower for keyword in id_keywords)
+    
+    # Try to parse and prioritize date columns first for trends
+    date_col = None
+    for col in df.columns:
+        col_lower = col.lower()
+        if any(word in col_lower for word in ["fecha", "date", "tiempo", "time", "año", "year", "mes", "month", "dia", "day", "hora", "hour", "created", "updated", "timestamp"]):
+            try:
+                # Try to parse as datetime
+                parsed = pd.to_datetime(df[col], errors='coerce')
+                if parsed.notna().sum() > len(df) * 0.5: # At least 50% valid dates
+                    date_col = col
+                    df_copy = df.copy()
+                    df_copy[col] = parsed
+                    break
+            except Exception:
+                continue
+    
+    # If we found a date column and useful numeric cols, create trend chart
+    if date_col:
+        numeric_cols = []
+        for col in df.select_dtypes(include=[np.number]).columns:
+            if not is_likely_identifier(col):
+                numeric_cols.append(col)
+        
+        # Find best numeric column to trend with date
+        priority_numeric_for_date = None
+        for col in numeric_cols:
+            col_lower = col.lower()
+            if any(word in col_lower for word in ["ventas", "sales", "precio", "price", "costo", "cost", "monto", "amount", "total", "profit", "ganancia", "cantidad", "quantity", "qty"]):
+                priority_numeric_for_date = col
+                break
+        if not priority_numeric_for_date and len(numeric_cols) > 0:
+            priority_numeric_for_date = numeric_cols[0]
+        
+        if priority_numeric_for_date:
+            # Group by date and sum/mean
+            try:
+                trend_df = df_copy[[date_col, priority_numeric_for_date]].dropna()
+                trend_df = trend_df.sort_values(date_col)
+                charts.append({
+                    "type": "temporal",
+                    "column": priority_numeric_for_date,
+                    "date_column": date_col,
+                    "labels": trend_df[date_col].dt.strftime('%Y-%m-%d').tolist(),
+                    "values": trend_df[priority_numeric_for_date].tolist()
+                })
+            except Exception:
+                    pass
+    
+    # Get all numeric columns (excluding identifiers)
+    numeric_cols = []
+    for col in df.select_dtypes(include=[np.number]).columns:
+        if not is_likely_identifier(col):
+            numeric_cols.append(col)
+    
+    # Prioritize useful numeric columns
+    priority_numeric = []
     for col in numeric_cols:
+        col_lower = col.lower()
+        if any(word in col_lower for word in ["ventas", "sales", "precio", "price", "costo", "cost", "monto", "amount", "total", "profit", "ganancia", "cantidad", "quantity", "qty"]):
+            priority_numeric.insert(0, col) # High priority
+        elif any(word in col_lower for word in ["volumen", "volume", "peso", "weight", "stock"]):
+            priority_numeric.append(col) # Medium priority
+        else:
+            priority_numeric.append(col) # Low priority
+    
+    # Add up to 2 more numeric charts (if not already added temporal)
+    max_numeric = 2 if date_col else 3
+    for col in priority_numeric[:max_numeric]:
         series = df[col].dropna()
-        if not series.empty:
+        if not series.empty and len(series) > 0:
             charts.append({
                 "type": "distribution",
                 "column": col,
                 "data": series.tolist()[:100] # Limit data points
             })
             
-    # Categorical counts
-    cat_cols = df.select_dtypes(include=["object", "category"]).columns[:3]
+    # Get all categorical columns (excluding identifiers)
+    cat_cols = []
+    for col in df.select_dtypes(include=["object", "category"]).columns:
+        if not is_likely_identifier(col):
+            # Also exclude columns that are mostly unique (like free text)
+            unique_ratio = df[col].nunique() / len(df) if len(df) > 0 else 0
+            if unique_ratio < 0.7: # Less than 70% unique
+                cat_cols.append(col)
+    
+    # Prioritize useful categorical columns
+    priority_cat = []
     for col in cat_cols:
+        col_lower = col.lower()
+        if any(word in col_lower for word in ["ciudad", "city", "pais", "country", "region", "estado", "status", "categoria", "category", "producto", "product", "marca", "brand", "tipo", "type"]):
+            priority_cat.insert(0, col) # High priority
+        elif any(word in col_lower for word in ["cliente", "client", "canal", "channel", "modelo", "model"]):
+            priority_cat.append(col) # Medium priority
+        else:
+            priority_cat.append(col) # Low priority
+    
+    # Add up to 3 categorical charts
+    for col in priority_cat[:3]:
         counts = df[col].value_counts().head(5)
         if not counts.empty:
             charts.append({
