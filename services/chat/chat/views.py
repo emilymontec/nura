@@ -2,14 +2,19 @@ import io
 import json
 import traceback
 import os
-from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-from django.views.decorators.http import require_http_methods
-import requests
 
 from .models import ChatSession, ChatMessage
+from .analytics.analyzer import (
+    load_csv, dataset_summary, column_info, evaluate_business,
+    analyze_numeric_trends, compute_correlations, detect_industry,
+    get_business_context, detect_critical_variables, detect_anomalies,
+    check_fraud_signals, simple_forecast, get_chart_data, get_preview, get_kpis
+)
+from .analytics.utils import make_json_safe
+from .ai.llm import generate_ai_report, chat_with_data
 
 
 def index(request):
@@ -18,30 +23,6 @@ def index(request):
 
 def test_endpoint(request):
     return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
-
-
-def make_json_safe(value):
-    import numpy as np
-    import pandas as pd
-    if isinstance(value, dict):
-        return {str(k): make_json_safe(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set, np.ndarray)):
-        return [make_json_safe(item) for item in value]
-    if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-        return int(value)
-    if isinstance(value, (np.floating, np.float64, np.float32, np.float16)):
-        return float(value)
-    if isinstance(value, (np.bool_, bool)):
-        return bool(value)
-    if isinstance(value, pd.Timestamp):
-        return value.isoformat()
-    if pd.isna(value):
-        return None
-    if hasattr(value, 'tolist'):
-        return make_json_safe(value.tolist())
-    if hasattr(value, 'item'):
-        return make_json_safe(value.item())
-    return value
 
 
 class MemoryManager:
@@ -96,28 +77,46 @@ memory = MemoryManager()
 
 
 def get_analytics_context(file_obj, filename):
-    url = f"{settings.ANALYTICS_SERVICE_URL}/analyze"
-    files = {"file": (filename, file_obj, "multipart/form-data")}
-    response = requests.post(url, files=files, timeout=120)
-    response.raise_for_status()
-    return response.json()
-
-
-def get_ai_report(context):
-    url = f"{settings.AI_SERVICE_URL}/generate-report"
-    response = requests.post(url, json={"context": context}, timeout=60)
-    if response.status_code == 200:
-        return response.json().get("report", None)
-    print(f"[NURA] Error al generar reporte IA: {response.status_code} {response.text}")
-    return None
-
-
-def get_ai_chat_response(question, context, history):
-    url = f"{settings.AI_SERVICE_URL}/chat"
-    response = requests.post(url, json={"question": question, "context": context, "history": history}, timeout=60)
-    if response.status_code == 200:
-        return response.json().get("response", None)
-    raise Exception(f"AI service returned {response.status_code}: {response.text}")
+    df = load_csv(file_obj)
+    summary = dataset_summary(df)
+    cols = column_info(df)
+    health = evaluate_business(summary)
+    trends = analyze_numeric_trends(df)
+    correlations = compute_correlations(df)
+    industry = detect_industry(df)
+    business_context = get_business_context(df, industry)
+    critical_variables = detect_critical_variables(df)
+    anomalies = detect_anomalies(df)
+    fraud_signals = check_fraud_signals(df)
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    forecasts = {}
+    for col in numeric_cols[:2]:
+        try:
+            f = simple_forecast(df, col)
+            if f:
+                forecasts[col] = f
+        except Exception as e:
+            pass
+    charts = get_chart_data(df)
+    preview = get_preview(df)
+    kpis = get_kpis(df)
+    return {
+        "file_name": filename,
+        "summary": summary,
+        "columns": cols,
+        "health": health,
+        "trends": trends,
+        "correlations": correlations,
+        "charts": charts,
+        "preview": preview,
+        "kpis": kpis,
+        "industry": industry,
+        "business_context": business_context,
+        "critical_variables": critical_variables,
+        "anomalies": anomalies,
+        "fraud_signals": fraud_signals,
+        "forecasts": forecasts
+    }
 
 
 @csrf_exempt
@@ -138,7 +137,7 @@ def analyze_endpoint(request):
             context = get_analytics_context(file, file.name)
             safe_context = make_json_safe(context)
             memory.store_dataset_context(session_id, safe_context)
-            ai_report = get_ai_report(safe_context)
+            ai_report = generate_ai_report(safe_context)
             score = safe_context.get('health', {}).get('health_score', 0)
             message_parts = [
                 f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\nHe detectado que tu negocio pertenece al sector de {safe_context.get('industry', 'General / Negocios')}.\nAnalicé un total de {safe_context.get('summary', {}).get('rows', 0)} filas de información.\nEn cuanto a la salud de tus datos, les doy una puntuación de {score:.0f} sobre 100 (un nivel de riesgo {safe_context.get('health', {}).get('risk_level', 'desconocido').lower()})."
@@ -169,7 +168,7 @@ def chat_endpoint(request):
             memory.add_message(session_id, "user", message)
             history = memory.get_history(session_id, message)
             context = memory.get_dataset_context(session_id)
-            response_text = get_ai_chat_response(message, context, history)
+            response_text = chat_with_data(message, context, history)
             memory.add_message(session_id, "assistant", response_text)
             return JsonResponse({"response": response_text})
         except Exception as e:

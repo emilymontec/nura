@@ -113,7 +113,3 @@ STORAGES = {
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-ANALYTICS_SERVICE_URL = os.getenv('ANALYTICS_SERVICE_URL', 'http://analytics-service:8000')
-AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://ai-service:8000')
