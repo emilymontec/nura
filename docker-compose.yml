@@ -1,20 +1,166 @@
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: nura-backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
+  # Base de datos PostgreSQL para el servicio de chat
+  postgres-chat:
+    image: postgres:15-alpine
+    container_name: nura-postgres-chat
+    environment:
+      POSTGRES_USER: nura_chat
+      POSTGRES_PASSWORD: nura_chat_password
+      POSTGRES_DB: nura_chat_db
     volumes:
-      - .:/app
+      - postgres-chat-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nura_chat -d nura_chat_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para caché y comunicación entre servicios
+  redis:
+    image: redis:7-alpine
+    container_name: nura-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Milvus (si lo necesitas para IA)
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: nura-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus-etcd-data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: nura-milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus-minio-data:/minio_data
+    command: minio server /minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.2.13
+    container_name: nura-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    volumes:
+      - milvus-data:/var/lib/milvus
+    depends_on:
+      milvus-etcd:
+        condition: service_started
+      milvus-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Microservicio de Chat (Django)
+  chat-service:
+    build:
+      context: ./services/chat
+      dockerfile: Dockerfile
+    container_name: nura-chat-service
+    ports:
+      - "8001:8000"
+    environment:
+      - DJANGO_SECRET_KEY=unsafe-secret-key-for-dev-only-change-me
+      - DJANGO_DEBUG=True
+      - DATABASE_URL=postgres://nura_chat:nura_chat_password@postgres-chat:5432/nura_chat_db
+      - REDIS_URL=redis://redis:6379/0
+      - ANALYTICS_SERVICE_URL=http://analytics-service:8000
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      postgres-chat:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/chat:/app
+      - ./services/chat/static:/static
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              python manage.py runserver 0.0.0.0:8000"
 
+  # Microservicio de Analytics (FastAPI)
+  analytics-service:
+    build:
+      context: ./services/analytics
+      dockerfile: Dockerfile
+    container_name: nura-analytics-service
+    ports:
+      - "8002:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/analytics:/app
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # Microservicio de AI (FastAPI)
+  ai-service:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+    container_name: nura-ai-service
+    ports:
+      - "8003:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      - REDIS_URL=redis://redis:6379/2
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT=19530
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+    volumes:
+      - ./services/ai:/app
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # Gateway (Nginx)
+  gateway:
+    image: nginx:alpine
+    container_name: nura-gateway
+    ports:
+      - "8000:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./services/chat/static:/static:ro
+    depends_on:
+      - chat-service
+      - analytics-service
+      - ai-service
+
+  # Frontend (React + Vite)
   frontend:
     build:
       context: ./frontend
@@ -25,8 +171,13 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
     depends_on:
-      - backend
+      - gateway
 
 volumes:
   postgres-chat-data:
+  milvus-etcd-data:
+  milvus-minio-data:
+  milvus-data:
