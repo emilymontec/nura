@@ -7,4 +7,3 @@ openpyxl>=3.1.0
 pypdf>=3.15.0
 python-docx>=0.8.11
 redis>=5.0.0
-nura-shared @ file:///shared/nura-shared

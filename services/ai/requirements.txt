@@ -6,4 +6,4 @@ pandas>=2.0.0
 scikit-learn>=1.3.0
 pymilvus>=2.3.0
 redis>=5.0.0
-nura-shared @ file:///shared/nura-shared
+groq>=0.0.0
