@@ -12,11 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependencias de Python
-COPY requirements.txt .
+COPY services/chat/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el proyecto completo desde la raíz del repo
-# Nota: El contexto de build debe ser la raíz del repositorio
+# Copiar el proyecto completo
 COPY . .
 
 EXPOSE 8000

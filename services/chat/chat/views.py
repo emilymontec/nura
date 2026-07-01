@@ -5,6 +5,8 @@ import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
+from django.conf import settings
+from django.views.generic import TemplateView
 
 from .models import ChatSession, ChatMessage
 from .analytics.analyzer import (
@@ -17,11 +19,13 @@ from .analytics.utils import make_json_safe
 from .ai.llm import generate_ai_report, chat_with_data
 
 
-def index(request):
-    return render(request, "home.html")
+class ReactAppView(TemplateView):
+    def get_template_names(self):
+        # We'll build the React app and use its index.html
+        return ['index.html']
 
-def chat(request):
-    return render(request, "index.html")
+def index(request):
+    return ReactAppView.as_view()(request)
 
 
 def test_endpoint(request):
