@@ -18,6 +18,9 @@ from .ai.llm import generate_ai_report, chat_with_data
 
 
 def index(request):
+    return render(request, "home.html")
+
+def chat(request):
     return render(request, "index.html")
 
 

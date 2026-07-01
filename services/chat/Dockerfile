@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar proyecto
+# Copiar el proyecto completo desde la raíz del repo
+# Nota: El contexto de build debe ser la raíz del repositorio
 COPY . .
 
 EXPOSE 8000
