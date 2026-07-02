@@ -9,14 +9,14 @@ from django.conf import settings
 from django.views.generic import TemplateView
 
 from .models import ChatSession, ChatMessage
-from .analytics.analyzer import (
+from analytics.analyzer import (
     load_csv, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
     get_business_context, detect_critical_variables, detect_anomalies,
     check_fraud_signals, simple_forecast, get_chart_data, get_preview, get_kpis
 )
-from .analytics.utils import make_json_safe
-from .ai.llm import generate_ai_report, chat_with_data
+from analytics.utils import make_json_safe
+from ai.llm import generate_ai_report, chat_with_data
 
 
 def index(request):

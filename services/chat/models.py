@@ -10,6 +10,8 @@ class ChatSession(models.Model):
     decision_notes = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_temporary = models.BooleanField(default=False)
+    user_id = models.IntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]
