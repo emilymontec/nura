@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+# Agregar la carpeta services a sys.path para encontrar la app chat
+sys.path.insert(0, str(BASE_DIR / "services"))
+
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'unsafe-secret-key-for-dev-only-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
@@ -63,27 +66,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'nura.wsgi.application'
 
 
+# Database
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is required - set it in your .env file")
+parsed = urlparse(DATABASE_URL)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': parsed.path.lstrip('/'),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': parsed.port or '5432',
     }
 }
-
-
-USE_SQLITE_LOCAL = os.getenv('USE_SQLITE_LOCAL', 'True').lower() == 'true'
-if not USE_SQLITE_LOCAL and os.getenv('DATABASE_URL'):
-    parsed = urlparse(os.getenv('DATABASE_URL'))
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': parsed.path.lstrip('/'),
-            'USER': unquote(parsed.username or ''),
-            'PASSWORD': unquote(parsed.password or ''),
-            'HOST': parsed.hostname or '',
-            'PORT': parsed.port or '5432',
-        }
-    }
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -103,14 +100,14 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / 'frontend/dist/assets'
+    BASE_DIR / 'frontend/dist'
 ]
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
 

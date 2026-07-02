@@ -7,11 +7,8 @@ from chat.views import index
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('chat.urls')),
+    re_path(r'^.*$', index, name='home'),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-else:
-    urlpatterns += [
-        re_path(r'^.*$', index, name='home'),
-    ]

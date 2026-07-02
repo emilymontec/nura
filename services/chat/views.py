@@ -19,13 +19,8 @@ from .analytics.utils import make_json_safe
 from .ai.llm import generate_ai_report, chat_with_data
 
 
-class ReactAppView(TemplateView):
-    def get_template_names(self):
-        # We'll build the React app and use its index.html
-        return ['index.html']
-
 def index(request):
-    return ReactAppView.as_view()(request)
+    return render(request, 'index.html')
 
 
 def test_endpoint(request):

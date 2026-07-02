@@ -19,7 +19,7 @@ services:
   chat-service:
     build:
       context: ..
-      dockerfile: services/chat/Dockerfile
+      dockerfile: Dockerfile.chat
     container_name: nura-chat-service
     ports:
       - "8001:8000"
@@ -35,7 +35,7 @@ services:
         condition: service_healthy
     volumes:
       - ..:/app
-    working_dir: /app/services/chat
+    working_dir: /app
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
