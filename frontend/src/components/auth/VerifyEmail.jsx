@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import '../../styles/main.css';
+import AmbientBackground from '../landing/AmbientBackground';
+import Navigation from '../landing/Navigation';
+import '../../styles/landing.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -10,6 +12,11 @@ function VerifyEmail() {
   const { key } = useParams();
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    document.body.classList.add('landing-active');
+    return () => document.body.classList.remove('landing-active');
+  }, []);
 
   useEffect(() => {
     if (!key) {
@@ -46,34 +53,95 @@ function VerifyEmail() {
   }, [key]);
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <Link to="/" className="auth-logo">NURA</Link>
-        <h2 className="auth-title">Verificación de Correo</h2>
-
-        {status === 'loading' && (
-          <div className="auth-loading">Verificando tu correo electrónico...</div>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div className="auth-success">
-              ¡Correo electrónico verificado con éxito! Ya puedes iniciar sesión.
+    <div className="nura-landing">
+      <AmbientBackground />
+      <Navigation />
+      <div className="container" style={{ paddingTop: '150px' }}>
+        <div className="ticket" style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <div className="ticket-head">
+            <div className="ticket-head-l">
+              <span className="rec-dot"></span>
+              <span>VERIFICACIÓN DE CORREO</span>
             </div>
-            <div className="auth-links" style={{ marginTop: '1rem' }}>
-              <Link to="/login" className="auth-link">Iniciar Sesión</Link>
-            </div>
-          </>
-        )}
+          </div>
+          <div className="ticket-body">
+            <Link to="/" style={{ textDecoration: 'none' }}>
+              <h2 style={{
+                fontFamily: 'Fraunces, serif',
+                fontWeight: '400',
+                fontSize: '24px',
+                color: 'var(--ink)',
+                marginBottom: '28px',
+                textAlign: 'center'
+              }}>
+                NURA
+              </h2>
+            </Link>
 
-        {status === 'error' && (
-          <>
-            <div className="auth-error">{error}</div>
-            <div className="auth-links" style={{ marginTop: '1rem' }}>
-              <Link to="/login" className="auth-link">Volver a Iniciar Sesión</Link>
-            </div>
-          </>
-        )}
+            {status === 'loading' && (
+              <div style={{
+                fontFamily: 'IBM Plex Mono, monospace',
+                fontSize: '12px',
+                color: 'var(--ink-soft)',
+                textAlign: 'center'
+              }}>
+                Verificando tu correo electrónico...
+              </div>
+            )}
+
+            {status === 'success' && (
+              <>
+                <div style={{
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '12px',
+                  color: 'var(--signal)',
+                  marginBottom: '20px',
+                  padding: '10px 16px',
+                  background: 'rgba(74, 222, 128, 0.1)',
+                  borderLeft: '2px solid var(--signal)'
+                }}>
+                  ¡Correo electrónico verificado con éxito! Ya puedes iniciar sesión.
+                </div>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginTop: '24px',
+                  justifyContent: 'center',
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '12px'
+                }}>
+                  <Link to="/login" style={{ color: 'var(--brass)', textDecoration: 'none' }}>Iniciar Sesión</Link>
+                </div>
+              </>
+            )}
+
+            {status === 'error' && (
+              <>
+                <div style={{
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '12px',
+                  color: 'var(--rust)',
+                  marginBottom: '20px',
+                  padding: '10px 16px',
+                  background: 'rgba(248, 113, 113, 0.1)',
+                  borderLeft: '2px solid var(--rust)'
+                }}>
+                  {error}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginTop: '24px',
+                  justifyContent: 'center',
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: '12px'
+                }}>
+                  <Link to="/login" style={{ color: 'var(--brass)', textDecoration: 'none' }}>Volver a Iniciar Sesión</Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

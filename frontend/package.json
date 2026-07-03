@@ -10,7 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "NURA React frontend",
+  "description": "nura| frontend",
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.3",
     "chart.js": "^4.4.0",
