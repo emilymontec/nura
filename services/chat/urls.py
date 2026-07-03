@@ -17,4 +17,6 @@ urlpatterns = [
     path('sessions/<str:session_id>/rename', views.rename_session, name='rename_session-no-slash'),
     path('sessions/<str:session_id>/delete/', views.delete_session, name='delete_session'),
     path('sessions/<str:session_id>/delete', views.delete_session, name='delete_session-no-slash'),
+    path('profile/', views.user_profile, name='user_profile'),
+    path('profile', views.user_profile, name='user_profile-no-slash'),
 ]

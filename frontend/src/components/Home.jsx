@@ -1,11 +1,31 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/main.css';
 
 function Home() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   return (
     <div className="home-container">
+      {/* Top Bar */}
+      <div className="home-topbar">
+        <div className="home-logo-small">NURA</div>
+        <div className="home-auth-buttons">
+          {user ? (
+            <>
+              <span className="user-email">{user.email}</span>
+              <button className="logout-btn" onClick={logout}>Cerrar Sesión</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="auth-link-btn">Iniciar Sesión</Link>
+              <Link to="/register" className="auth-primary-btn">Crear Cuenta</Link>
+            </>
+          )}
+        </div>
+      </div>
+
       <h1 className="home-logo">NURA</h1>
       <h2 className="home-subtitle">Inteligencia Conversacional para Análisis Empresarial</h2>
       <p className="home-description">

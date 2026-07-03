@@ -1,5 +1,8 @@
 Django>=5.0
 djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+dj-rest-auth>=5.0
+django-allauth>=0.63
 django-cors-headers>=4.0
 whitenoise>=6.5
 psycopg2-binary>=2.9

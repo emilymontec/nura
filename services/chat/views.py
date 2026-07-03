@@ -4,11 +4,20 @@ import traceback
 import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.conf import settings
 from django.views.generic import TemplateView
+from django.contrib.auth import get_user_model
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
-from .models import ChatSession, ChatMessage
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import ChatSession, ChatMessage, UserProfile
+from .serializers import UserProfileSerializer, UserSerializer
 from analytics.analyzer import (
     load_csv, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
@@ -17,6 +26,18 @@ from analytics.analyzer import (
 )
 from analytics.utils import make_json_safe
 from ai.llm import generate_ai_report, chat_with_data
+
+User = get_user_model()
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
 
 
 def index(request):
@@ -248,3 +269,27 @@ def delete_session(request, session_id):
         except ChatSession.DoesNotExist:
             return JsonResponse({"error": "Sesión no encontrada"}, status=404)
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_profile(request):
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+    if request.method == 'GET':
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+    elif request.method == 'PUT':
+        data = request.data
+        user_data = data.pop('user', None)
+        
+        profile_serializer = UserProfileSerializer(profile, data=data, partial=True)
+        if profile_serializer.is_valid():
+            profile_serializer.save()
+            
+            if user_data:
+                user_serializer = UserSerializer(request.user, data=user_data, partial=True)
+                if user_serializer.is_valid():
+                    user_serializer.save()
+            
+            return Response(UserProfileSerializer(profile).data)
+        return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
