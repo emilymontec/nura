@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import '../styles/main.css';
+import { useAuth } from '../../contexts/AuthContext';
+import '../../styles/main.css';
 
 function Register() {
   const [email, setEmail] = useState('');
@@ -23,15 +23,24 @@ function Register() {
       return;
     }
 
+    if (password1.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await register(email, password1, password2);
-      setSuccess('¡Registro exitoso! Por favor verifica tu correo electrónico.');
-      // Optionally redirect to login after a delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
+      const data = await register(email, password1, password2);
+      // If JWT tokens were returned, user is auto-logged in
+      if (data.access || data.access_token) {
+        navigate('/chat');
+      } else {
+        setSuccess('¡Registro exitoso! Por favor verifica tu correo electrónico.');
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      }
     } catch (err) {
       setError(err.message);
     } finally {

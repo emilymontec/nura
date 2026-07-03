@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import Sidebar from './Sidebar';
+import Sidebar from '../layout/Sidebar';
 import ChatHeader from './ChatHeader';
 import ChatContainer from './ChatContainer';
 import Composer from './Composer';
-import AnalyticsPanel from './AnalyticsPanel';
+import AnalyticsPanel from '../analytics/AnalyticsPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 

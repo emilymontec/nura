@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'allauth',
@@ -55,6 +56,10 @@ REST_FRAMEWORK = {
 REST_AUTH = {
     'USE_JWT': True,
     'TOKEN_MODEL': None,
+    'JWT_AUTH_COOKIE': None,
+    'JWT_AUTH_REFRESH_COOKIE': None,
+    'REGISTER_SERIALIZER': 'dj_rest_auth.registration.serializers.RegisterSerializer',
+    'PASSWORD_RESET_SERIALIZER': 'nura.serializers.CustomPasswordResetSerializer',
 }
 
 from datetime import timedelta
@@ -66,19 +71,21 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_ADAPTER = 'nura.adapters.NuraAccountAdapter'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+ACCOUNT_EMAIL_SUBJECT_PREFIX = 'NURA - '
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
+LOGIN_ON_EMAIL_CONFIRMATION = True
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 if os.getenv('MAILGUN_API_KEY') and os.getenv('MAILGUN_DOMAIN'):
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.mailgun.org'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = 'postmaster@' + os.getenv('MAILGUN_DOMAIN')
-    EMAIL_HOST_PASSWORD = os.getenv('MAILGUN_API_KEY')
+    EMAIL_BACKEND = 'nura.mail_backend.MailgunAPIBackend'
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@nura.app')
 
 

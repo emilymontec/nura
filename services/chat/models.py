@@ -11,6 +11,10 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # Fields from existing database schema
+    plan = models.CharField(max_length=100, default="free")
+    daily_messages = models.IntegerField(default=0)
+    last_message_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.email} - Profile"
