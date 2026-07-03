@@ -10,7 +10,6 @@ function Home() {
     <div className="home-container">
       {/* Top Bar */}
       <div className="home-topbar">
-        <div className="home-logo-small">NURA</div>
         <div className="home-auth-buttons">
           {user ? (
             <>

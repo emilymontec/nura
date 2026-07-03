@@ -48,7 +48,7 @@
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 2rem;
+  padding: 6rem 2rem 2rem;
   background: linear-gradient(135deg, #020203 0%, #1a1d2e 100%);
   color: white;
 }
@@ -1090,31 +1090,28 @@ input {
 
 /* Home Top Bar */
 .home-topbar {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  padding: 1rem 2rem;
+  padding: 1.5rem 2rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  background: linear-gradient(180deg, rgba(2, 2, 3, 0.95) 0%, transparent 100%);
-  z-index: 100;
-}
-
-.home-logo-small {
-  font-family: 'Cinzel', serif;
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: transparent;
+  z-index: 1000;
 }
 
 .home-auth-buttons {
   display: flex;
   gap: 1rem;
   align-items: center;
+  background: rgba(10, 10, 12, 0.7);
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .auth-link-btn {

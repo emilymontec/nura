@@ -4,9 +4,7 @@ import traceback
 import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, get_object_or_404
 from django.conf import settings
-from django.views.generic import TemplateView
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -38,10 +36,6 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
     if hasattr(instance, 'profile'):
         instance.profile.save()
-
-
-def index(request):
-    return render(request, 'index.html')
 
 
 def test_endpoint(request):

@@ -5,6 +5,8 @@ import ChatContainer from './ChatContainer';
 import Composer from './Composer';
 import AnalyticsPanel from './AnalyticsPanel';
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 function ChatApp() {
   const [sessionId, setSessionId] = useState('default');
   const [messages, setMessages] = useState([]);
@@ -16,7 +18,7 @@ function ChatApp() {
 
   const fetchSessions = async () => {
     try {
-      const response = await fetch('/api/sessions');
+      const response = await fetch(`${API_BASE}/api/sessions`);
       const data = await response.json();
       setSessions(data.sessions || []);
     } catch (error) {
@@ -35,7 +37,7 @@ function ChatApp() {
   const loadSession = async (id) => {
     setSessionId(id);
     try {
-      const response = await fetch(`/api/sessions/${id}`);
+      const response = await fetch(`${API_BASE}/api/sessions/${id}`);
       const data = await response.json();
       setMessages(data.messages || []);
       setDatasetContext(data.dataset_context || null);
@@ -50,7 +52,7 @@ function ChatApp() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,7 +78,7 @@ function ChatApp() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/analyze', {
+      const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         body: formData
       });
