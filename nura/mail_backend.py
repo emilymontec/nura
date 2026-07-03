@@ -41,9 +41,11 @@ class MailgunAPIBackend(BaseEmailBackend):
                 if response.status_code == 200:
                     num_sent += 1
                 else:
+                    print(f"Mailgun Error: {response.status_code} - {response.text}")
                     if not self.fail_silently:
-                        response.raise_for_status()
-            except Exception:
+                        pass # Avoid crashing the authentication flow
+            except Exception as e:
+                print(f"Mailgun Exception: {e}")
                 if not self.fail_silently:
-                    raise
+                    pass # Avoid crashing the authentication flow
         return num_sent
