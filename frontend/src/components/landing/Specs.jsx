@@ -30,7 +30,7 @@ function Specs() {
     <section className="spec-sec" id="instrumento">
       <div className="section-eyebrow">
         <span className="mark">§ INSTRUMENTO</span>
-        <h2>Cómo escucha Nura</h2>
+        <h2>Cómo escucha</h2>
       </div>
 
       <div className="specs-grid">
@@ -46,7 +46,7 @@ function Specs() {
           <div className="module-list">
             <div className="module-item">
               <div className="module-t">Modelado semántico directo</div>
-              <div className="module-d">Nura convierte filas crudas en un grafo lógico que entiende conceptos reales del negocio, no solo columnas.</div>
+              <div className="module-d">Convierte filas crudas en un grafo lógico que entiende conceptos reales del negocio, no solo columnas.</div>
             </div>
             <div className="module-item">
               <div className="module-t">Inferencia predictiva continua</div>

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import analyzer, utils
 import io
 
-app = FastAPI(title="NURA Analytics Service", version="0.1.0")
+app = FastAPI(title="Analytics Service", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

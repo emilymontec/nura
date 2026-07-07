@@ -59,8 +59,8 @@ class LLMRouter:
                 "Content-Type": "application/json"
             }
             if provider == "openrouter":
-                headers["HTTP-Referer"] = "https://nura.ai"
-                headers["X-Title"] = "NURA"
+                headers["HTTP-Referer"] = "https://localhost"
+                headers["X-Title"] = "AI Service"
             payload = {
                 "model": model,
                 "messages": messages,
@@ -72,9 +72,9 @@ class LLMRouter:
                 if response.status_code == 200:
                     return response.json()["choices"][0]["message"]["content"]
                 else:
-                    print(f"[NURA Router] Fallback activado: {provider} ({model}) fallo con estado {response.status_code}.")
+                    print(f"[Router] Fallback activado: {provider} ({model}) fallo con estado {response.status_code}.")
             except Exception as e:
-                print(f"[NURA Router] Fallback activado: Excepcion con {provider} ({model}) - {str(e)}")
+                print(f"[Router] Fallback activado: Excepcion con {provider} ({model}) - {str(e)}")
         raise Exception("Todos los proveedores LLM configurados (Groq, Cerebras, OpenRouter) han fallado o no estan configurados.")
 
 
@@ -99,7 +99,7 @@ def generate_ai_report(context_data: dict) -> str:
     )
     try:
         return _run_completion(
-            system_message="Eres NURA, una analista de negocios que habla de forma clara, cercana y sin tecnicismos.",
+            system_message="Eres un analista de negocios que habla de forma clara, cercana y sin tecnicismos.",
             prompt=prompt,
             temperature=0.3,
             tier="premium"
@@ -195,7 +195,7 @@ def route_intent(question: str, context: dict, history: str) -> str:
     try:
         response_text = router.generate(
             messages=[
-                {"role": "system", "content": "Eres el enrutador de intenciones de NURA. Responde ÚNICAMENTE con el key del agente seleccionado."},
+                {"role": "system", "content": "Eres el enrutador de intenciones. Responde ÚNICAMENTE con el key del agente seleccionado."},
                 {"role": "user", "content": prompt},
             ],
             tier="fast",
@@ -207,7 +207,7 @@ def route_intent(question: str, context: dict, history: str) -> str:
             selected_key = selected_key.replace(char, "")
         return selected_key.strip()
     except Exception as e:
-        print(f"[NURA Router] Error en route_intent: {e}")
+        print(f"[Router] Error en route_intent: {e}")
         return "chat"
 
 
@@ -224,7 +224,7 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
             agent = AGENT_REGISTRY[selected_key]
             if not (agent.requires_dataset and not has_dataset):
                 def run_specialist_callback(system_message, prompt, temperature=0.25):
-                    human_system = f"Eres {agent.name} de NURA. Hablas de forma clara, amable y sin tecnicismos."
+                    human_system = f"Eres {agent.name}. Hablas de forma clara, amable y sin tecnicismos."
                     return _run_completion(human_system, prompt, temperature, tier="standard")
                 return run_specialist_agent(agent, question, short_context, history, industry, run_specialist_callback)
         prompt = CHAT_ANALYST_PROMPT.format(
@@ -235,7 +235,7 @@ def chat_with_data(question: str, context: dict, history: str) -> str:
         )
         return _run_completion(
             system_message=(
-                f"Eres NURA, la asistente inteligente que ayuda a entender negocios en el sector de {industry}. "
+                f"Eres una asistente inteligente que ayuda a entender negocios en el sector de {industry}. "
                 "Tu objetivo es que cualquier persona entienda su empresa. Habla siempre de forma sencilla, humana y sin usar jerga técnica."
             ),
             prompt=prompt,

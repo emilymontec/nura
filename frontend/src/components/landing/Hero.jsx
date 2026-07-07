@@ -6,10 +6,10 @@ function Hero() {
 
   return (
     <section className="hero">
-      <span className="hero-tag">Nura Intelligence — Instrumento de escucha de datos</span>
-      <h1>Todo dato dice algo.<br /><em>Nura</em> lo escucha antes que tú.</h1>
+      <span className="hero-tag">Instrumento de escucha de datos</span>
+      <h1>Todo dato dice algo.<br /><em>Lo</em> escucha antes que tú.</h1>
       <p>
-        Nura se conecta a tu ecosistema, capta cada señal operativa en tiempo real y traduce el ruido en decisiones claras — en el mismo lenguaje con el que se lo preguntas. Sin paneles que configurar.
+        Se conecta a tu ecosistema, capta cada señal operativa en tiempo real y traduce el ruido en decisiones claras — en el mismo lenguaje con el que se lo preguntas. Sin paneles que configurar.
       </p>
       <div className="hero-actions">
         <button onClick={() => navigate('/chat')} className="btn-primary">Iniciar escucha</button>

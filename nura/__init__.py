@@ -1,1 +1,1 @@
-# Nura config package
+# Config package

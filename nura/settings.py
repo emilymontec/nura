@@ -73,9 +73,9 @@ SIMPLE_JWT = {
 
 ACCOUNT_ADAPTER = 'nura.adapters.NuraAccountAdapter'
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
-ACCOUNT_EMAIL_SUBJECT_PREFIX = 'NURA - '
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ''
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
@@ -86,7 +86,7 @@ LOGIN_ON_EMAIL_CONFIRMATION = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 if os.getenv('MAILGUN_API_KEY') and os.getenv('MAILGUN_DOMAIN'):
     EMAIL_BACKEND = 'nura.mail_backend.MailgunAPIBackend'
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@nura.app')
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@localhost')
 
 
 MIDDLEWARE = [

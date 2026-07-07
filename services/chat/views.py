@@ -39,7 +39,7 @@ def save_user_profile(sender, instance, **kwargs):
 
 
 def test_endpoint(request):
-    return JsonResponse({"status": "ok", "message": "La API de NURA esta operativa"})
+    return JsonResponse({"status": "ok", "message": "La API esta operativa"})
 
 
 class MemoryManager:
@@ -167,7 +167,7 @@ def analyze_endpoint(request):
             return JsonResponse(safe_context)
         except Exception as e:
             err = f"Error al analizar el archivo: {str(e)}"
-            print(f"[NURA] CRASH EN ANALISIS: {err}")
+            print(f"[ERROR] CRASH EN ANALISIS: {err}")
             traceback.print_exc()
             return JsonResponse({"error": err, "exception": type(e).__name__, "detail": repr(e)}, status=500)
     return JsonResponse({"error": "Se requiere una petición POST"}, status=400)

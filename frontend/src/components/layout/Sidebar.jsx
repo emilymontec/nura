@@ -9,27 +9,6 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="brand">
-          <div className="brand-logo" style={{
-            background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(177, 86, 255, 0.2))',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid rgba(0, 242, 254, 0.3)'
-          }}>
-            <span style={{
-              fontSize: '1.4rem',
-              fontFamily: 'Cinzel, serif',
-              color: '#00f2fe',
-              fontWeight: 'bold'
-            }}>N</span>
-          </div>
-          <div className="brand-copy">
-            <strong>NURA</strong>
-            <span>Inteligencia Aplicada</span>
-          </div>
-        </div>
       </div>
 
       <div className="sidebar-content">

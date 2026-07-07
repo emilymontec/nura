@@ -3,7 +3,6 @@ export default function ChatHeader({ showAnalytics, onToggleAnalytics }) {
   return (
     <header className="chat-header">
       <div className="header-info">
-        <h2>NURA</h2>
         <span className="header-status-dot"></span>
         <span className="header-status-text">Listo</span>
       </div>

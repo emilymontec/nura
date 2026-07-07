@@ -5,7 +5,7 @@ from typing import Dict, Optional, List, Any
 from . import llm
 
 
-app = FastAPI(title="NURA AI Service", version="0.1.0")
+app = FastAPI(title="AI Service", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

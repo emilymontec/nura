@@ -65,18 +65,7 @@ function VerifyEmail() {
             </div>
           </div>
           <div className="ticket-body">
-            <Link to="/" style={{ textDecoration: 'none' }}>
-              <h2 style={{
-                fontFamily: 'Fraunces, serif',
-                fontWeight: '400',
-                fontSize: '24px',
-                color: 'var(--ink)',
-                marginBottom: '28px',
-                textAlign: 'center'
-              }}>
-                NURA
-              </h2>
-            </Link>
+
 
             {status === 'loading' && (
               <div style={{

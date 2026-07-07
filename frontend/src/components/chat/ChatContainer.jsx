@@ -5,7 +5,7 @@ export default function ChatContainer({ messages, loading, datasetContext, onPro
   const welcomePrompts = [
     {
       title: 'Presentación',
-      text: 'Hola NURA, preséntate y dime brevemente cómo puedes ayudarme.'
+      text: 'Hola, preséntate y dime brevemente cómo puedes ayudarme.'
     },
     {
       title: 'KPIs',
@@ -26,10 +26,9 @@ export default function ChatContainer({ messages, loading, datasetContext, onPro
       {messages.length === 0 && !datasetContext && (
         <div className="welcome-screen">
           <div className="welcome-core">
-            <h1 className="monolith-title">NURA</h1>
             <div className="terminal-stream">
               <p className="ai-thought">
-                ¡Hola! Soy NURA. Sube un archivo con tu información (Excel o CSV) y te ayudaré a entender qué significan tus números de forma sencilla.
+                ¡Hola! Sube un archivo con tu información (Excel o CSV) y te ayudaré a entender qué significan tus números de forma sencilla.
               </p>
             </div>
           </div>
@@ -55,7 +54,6 @@ export default function ChatContainer({ messages, loading, datasetContext, onPro
       {loading && (
         <div className="message bot-msg loading">
           <div className="avatar nura-avatar">
-            <span style={{ fontSize: '1.1rem', fontFamily: 'Cinzel, serif' }}>N</span>
           </div>
           <div className="msg-content">
             <span>Analizando...</span>

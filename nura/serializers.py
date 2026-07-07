@@ -7,6 +7,6 @@ class CustomPasswordResetSerializer(PasswordResetSerializer):
         return {
             'url_generator': custom_password_reset_url_generator,
             'extra_email_context': {
-                'frontend_url': getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+                'frontend_url': getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             }
         }

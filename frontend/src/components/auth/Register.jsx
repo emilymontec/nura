@@ -46,7 +46,7 @@ function Register() {
         setSuccess('¡Registro exitoso! Por favor verifica tu correo electrónico.');
         setTimeout(() => {
           navigate('/login');
-        }, 3000);
+        }, 5173);
       }
     } catch (err) {
       setError(err.message);
@@ -68,18 +68,7 @@ function Register() {
             </div>
           </div>
           <div className="ticket-body">
-            <Link to="/" style={{ textDecoration: 'none' }}>
-              <h2 style={{
-                fontFamily: 'Fraunces, serif',
-                fontWeight: '400',
-                fontSize: '24px',
-                color: 'var(--ink)',
-                marginBottom: '28px',
-                textAlign: 'center'
-              }}>
-                NURA
-              </h2>
-            </Link>
+
 
             {error && (
               <div style={{

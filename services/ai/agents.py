@@ -20,7 +20,7 @@ AGENT_REGISTRY = {
         key="context",
         name="Asistente de Memoria",
         focus="recordar lo que hablamos antes, buscar en archivos antiguos y dar continuidad a la charla",
-        goal="asegurar que la conversación fluya y que NURA recuerde detalles de otros chats o archivos pasados",
+        goal="asegurar que la conversación fluya y que recuerde detalles de otros chats o archivos pasados",
         triggers=("antes", "anterior", "dijiste", "hablamos", "recuerda", "contexto", "referias", "archivo antiguo", "otro chat", "pasado"),
         requires_dataset=False,
         priority=100,
@@ -100,7 +100,7 @@ def run_specialist_agent(agent: AgentProfile, question: str, context: str, histo
         history=history,
         question=question,
     )
-    return llm_callback(prompt=prompt, system_message=f"Eres {agent.name} dentro del sistema multiagente de NURA.", temperature=0.25)
+    return llm_callback(prompt=prompt, system_message=f"Eres {agent.name} dentro del sistema multiagente.", temperature=0.25)
 
 
 def run_agent_system(question: str, context: str, history: str, industry: str, llm_callback) -> List[Dict[str, str]]:

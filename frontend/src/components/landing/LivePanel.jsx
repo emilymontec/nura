@@ -63,14 +63,14 @@ function LivePanel() {
     <section className="live-sec" id="panel">
       <div className="section-eyebrow">
         <span className="mark">§ EN VIVO</span>
-        <h2>Lo que Nura escuchó hoy</h2>
+        <h2>Lo que escuchó hoy</h2>
       </div>
 
       <div className="ticket">
         <div className="ticket-head">
           <div className="ticket-head-l">
             <span className="rec-dot"></span>
-            <span>nura-agent · canal-01 · señal estable</span>
+            <span>agent · canal-01 · señal estable</span>
           </div>
           <span className="ticket-v">{timeStr}</span>
         </div>
@@ -82,7 +82,7 @@ function LivePanel() {
           </span>
 
           <div>
-            <div className="reply-meta">Nura — lectura del canal</div>
+            <div className="reply-meta">Lectura del canal</div>
             <p className="reply-text">
               Señal captada y normalizada contra la línea base trimestral. Dos lecturas se salen del rango esperado y merecen tu atención:
             </p>
