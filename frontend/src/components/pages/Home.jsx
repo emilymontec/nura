@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BarChart3, MessageSquare, FileText, Zap, Users, Database, PieChart, BookOpen } from 'lucide-react';
 import PublicHeader from "../landing/PublicHeader";
 
 function Home() {
@@ -19,13 +20,13 @@ function Home() {
             Plataforma de análisis de datos
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-light tracking-tight text-stark-public leading-[1.1]">
+          <h1 className="text-4xl md:text-6xl font-normal tracking-tight text-white leading-[1.1]">
             Nura Intelligence
           </h1>
-          <p className="text-xl md:text-2xl text-white/70 font-light">
+          <p className="text-xl md:text-2xl text-white/70 font-normal">
             Analítica de datos asistida por inteligencia artificial
           </p>
-          <p className="text-white/40 text-sm md:text-base font-light max-w-2xl mx-auto">
+          <p className="text-white/40 text-sm md:text-base font-normal max-w-2xl mx-auto">
             Transforma tus datos en decisiones inteligentes. Analiza, explora y pregunta sobre tus datasets 
             en lenguaje natural, sin conocimientos técnicos avanzados.
           </p>
@@ -101,16 +102,16 @@ function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { title: "Motor de análisis", desc: "Estadísticas descriptivas, correlaciones y tendencias" },
-            { title: "Chat con datos", desc: "Pregunta sobre tus datos en lenguaje natural" },
-            { title: "Reportes", desc: "Genera reportes ejecutivos automáticos" }
+            { title: "Motor de análisis", desc: "Estadísticas descriptivas, correlaciones y tendencias", icon: BarChart3 },
+            { title: "Chat con datos", desc: "Pregunta sobre tus datos en lenguaje natural", icon: MessageSquare },
+            { title: "Reportes", desc: "Genera reportes ejecutivos automáticos", icon: FileText }
           ].map((feature, i) => (
             <div key={i} className="pure-glass-public rounded-xl p-6 space-y-4 hover:border-white/10 transition-all">
-              <div className="text-nura-electric text-2xl">
-                {i === 0 ? "📊" : i === 1 ? "💬" : "📄"}
+              <div className="text-nura-electric">
+                <feature.icon className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-normal text-white">{feature.title}</h3>
-              <p className="text-white/40 text-sm font-light leading-relaxed">
+              <p className="text-white/40 text-sm font-normal leading-relaxed">
                 {feature.desc}
               </p>
             </div>
@@ -121,24 +122,27 @@ function Home() {
       {/* Use Cases Section */}
       <section className="relative py-24 border-t border-white/[0.03] max-w-7xl mx-auto px-6 z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-light tracking-tight text-stark-public">
+          <h2 className="text-3xl md:text-4xl font-normal tracking-tight text-white">
             Casos de uso básicos
           </h2>
-          <p className="text-white/40 text-sm md:text-base font-light max-w-xl mx-auto mt-4">
+          <p className="text-white/40 text-sm md:text-base font-normal max-w-xl mx-auto mt-4">
             Cómo puedes usar la plataforma
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {[
-            { title: "Análisis de ventas", desc: "Explora tendencias, identifica productos con mejor rendimiento y detecta anomalías" },
-            { title: "Datos de usuarios", desc: "Entiende el comportamiento de tus usuarios y segmenta tu audiencia" },
-            { title: "Inventario", desc: "Optimizá tu stock, detecta desabastecimiento y predice necesidades" },
-            { title: "Encuestas", desc: "Analiza respuestas de encuestas para extraer insights clave" }
+            { title: "Análisis de ventas", desc: "Explora tendencias, identifica productos con mejor rendimiento y detecta anomalías", icon: Zap },
+            { title: "Datos de usuarios", desc: "Entiende el comportamiento de tus usuarios y segmenta tu audiencia", icon: Users },
+            { title: "Inventario", desc: "Optimizá tu stock, detecta desabastecimiento y predice necesidades", icon: Database },
+            { title: "Encuestas", desc: "Analiza respuestas de encuestas para extraer insights clave", icon: PieChart }
           ].map((usecase, i) => (
-            <div key={i} className="pure-glass-public rounded-xl p-6 space-y-3">
+            <div key={i} className="pure-glass-public rounded-xl p-6 space-y-4">
+              <div className="text-nura-purple">
+                <usecase.icon className="w-8 h-8" />
+              </div>
               <h3 className="text-lg font-normal text-white">{usecase.title}</h3>
-              <p className="text-white/40 text-sm font-light">
+              <p className="text-white/40 text-sm font-normal">
                 {usecase.desc}
               </p>
             </div>
@@ -149,10 +153,10 @@ function Home() {
       {/* Pricing Section */}
       <section className="relative py-24 border-t border-white/[0.03] max-w-7xl mx-auto px-6 z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-light tracking-tight text-stark-public">
+          <h2 className="text-3xl md:text-4xl font-normal tracking-tight text-white">
             Precios
           </h2>
-          <p className="text-white/40 text-sm md:text-base font-light max-w-xl mx-auto mt-4">
+          <p className="text-white/40 text-sm md:text-base font-normal max-w-xl mx-auto mt-4">
             Comienza gratis, escala cuando lo necesites
           </p>
         </div>
@@ -207,10 +211,10 @@ function Home() {
       {/* Documentation Preview Section */}
       <section className="relative py-24 border-t border-white/[0.03] max-w-7xl mx-auto px-6 z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-light tracking-tight text-stark-public">
+          <h2 className="text-3xl md:text-4xl font-normal tracking-tight text-white">
             Documentación básica
           </h2>
-          <p className="text-white/40 text-sm md:text-base font-light max-w-xl mx-auto mt-4">
+          <p className="text-white/40 text-sm md:text-base font-normal max-w-xl mx-auto mt-4">
             Todo lo que necesitas para empezar
           </p>
         </div>

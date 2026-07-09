@@ -9,8 +9,8 @@ export default function Pricing() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-24">
         <div className="text-center space-y-4 mb-16">
-          <h1 className="text-4xl md:text-5xl font-light text-stark-public tracking-tight">Planes</h1>
-          <p className="text-white/40 text-sm md:text-base font-light max-w-2xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-normal text-white tracking-tight">Planes</h1>
+          <p className="text-white/40 text-sm md:text-base font-normal max-w-2xl mx-auto">
             Comienza hoy mismo con nuestra versión gratuita
           </p>
         </div>

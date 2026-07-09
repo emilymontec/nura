@@ -8,8 +8,8 @@ export default function Privacy() {
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-24">
         <div className="space-y-8">
           <div>
-            <h1 className="text-4xl font-light text-stark-public tracking-tight mb-4">Política de Privacidad</h1>
-            <p className="text-white/40 text-base font-light">
+            <h1 className="text-4xl font-normal text-white tracking-tight mb-4">Política de privacidad</h1>
+            <p className="text-white/40 text-base font-normal">
               Última actualización: Julio 2026
             </p>
           </div>

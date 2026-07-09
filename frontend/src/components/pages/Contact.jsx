@@ -20,8 +20,8 @@ export default function Contact() {
       <div className="relative z-10 max-w-2xl mx-auto px-6 py-24">
         <div className="space-y-8">
           <div>
-            <h1 className="text-4xl font-light text-stark-public tracking-tight mb-4">Contacto</h1>
-            <p className="text-white/40 text-base font-light">
+            <h1 className="text-4xl font-normal text-white tracking-tight mb-4">Contacto</h1>
+            <p className="text-white/40 text-base font-normal">
               Escríbenos y te responderemos lo antes posible
             </p>
           </div>
