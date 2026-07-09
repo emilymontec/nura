@@ -1,0 +1,13 @@
+Verifica tu correo electrónico - Nura Intelligence
+
+Hola {{ user.get_username }},
+
+Gracias por registrarte en Nura Intelligence. Haz clic en el siguiente enlace para verificar tu dirección de correo electrónico:
+
+{{ activate_url }}
+
+Si el enlace no funciona, puedes copiar y pegar el enlace completo en tu navegador.
+
+© 2026 Nura Intelligence. Todos los derechos reservados.
+Términos y condiciones: {{ frontend_url }}/terms
+Política de privacidad: {{ frontend_url }}/privacy
