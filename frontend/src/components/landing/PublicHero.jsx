@@ -6,7 +6,7 @@ export default function PublicHero() {
       <div className="lg:col-span-6 space-y-8 text-left">
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-white/[0.02] border border-white/[0.05] font-mono text-[10px] text-nura-electric tracking-wider uppercase">
           <span className="w-1 h-1 rounded-full bg-nura-electric animate-ping" />
-          Analytics Core v3.1 // Active
+          NURA v1.2 // Active
         </div>
         <h1 className="text-4xl md:text-6xl font-light tracking-tight text-stark-public leading-[1.1]">
           Analítica de datos <br />{" "}
@@ -15,7 +15,7 @@ export default function PublicHero() {
           </span>
         </h1>
         <p className="text-white/40 text-sm md:text-base font-light max-w-xl leading-relaxed">
-          NURA INTELLIGENCE procesa y analiza tus datasets empresariales con inteligencia artificial.
+          Plataforma de analítica procesa y analiza tus datasets empresariales con inteligencia artificial.
           Estadísticas descriptivas, detección de anomalías y chat conversacional en lenguaje natural.
         </p>
         <div className="flex items-center gap-4 pt-4 font-mono text-[11px]">
@@ -50,7 +50,7 @@ export default function PublicHero() {
                   <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
                 </div>
                 <span className="text-[10px] text-white/30 tracking-widest">
-                    NURA_ANALYTICS_01
+                    ANALYTICS_ENGINE
                 </span>
               </div>
               <span className="text-[10px] text-nura-electric bg-nura-electric/10 px-1.5 py-0.5 rounded">
@@ -62,7 +62,7 @@ export default function PublicHero() {
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-white/20">DATASET_ACTIVO:</span>
                 <span className="text-white/80 font-light">
-                  ventas_q2_2026.csv
+                  ventas_2026.csv
                 </span>
               </div>
               <div className="h-[1px] bg-gradient-to-r from-nura-electric/30 via-nura-purple/20 to-transparent" />

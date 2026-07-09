@@ -59,7 +59,7 @@ function Register() {
             <h1 className="text-2xl font-light text-stark-public tracking-tight flex items-center justify-center gap-2">
               <UserPlus className="w-6 h-6 text-nura-purple" /> CREAR CUENTA
             </h1>
-            <p className="text-white/40 text-xs font-mono">Únete a Nura Intelligence</p>
+            <p className="text-white/40 text-xs font-mono">Únete a la plataforma</p>
           </div>
 
           {error && (

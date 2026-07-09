@@ -10,7 +10,7 @@ export default function PublicFeatures() {
         <div className="md:col-span-6 bg-nura-black/80 p-8 space-y-6 flex flex-col justify-between group hover:bg-nura-gray/90 transition-all duration-300">
           <div className="space-y-3">
             <span className="font-mono text-[10px] text-nura-electric tracking-widest block">
-              // ENGINE 01
+              // ENGINE
             </span>
             <h3 className="text-lg font-normal tracking-tight text-white/90">
               Motor de Analítica Predictiva
@@ -28,13 +28,13 @@ export default function PublicFeatures() {
         <div className="md:col-span-3 bg-nura-black/80 p-8 space-y-6 flex flex-col justify-between hover:bg-nura-gray/90 transition-all duration-300">
           <div className="space-y-3">
             <span className="font-mono text-[10px] text-white/20 tracking-widest block">
-              // PIPELINE 02
+              // CHAT
             </span>
             <h3 className="text-base font-normal tracking-tight text-white/90">
               Chat Conversacional con Datos
             </h3>
             <p className="text-white/40 font-light text-xs leading-relaxed">
-              Interroga tus datasets en lenguaje natural. NURA responde con análisis precisos
+              Interroga tus datasets en lenguaje natural. La plataforma responde con análisis precisos
               soportado por Groq, Cerebras u OpenRouter según tu preferencia.
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function PublicFeatures() {
         <div className="md:col-span-3 bg-nura-black/80 p-8 space-y-6 flex flex-col justify-between hover:bg-nura-gray/90 transition-all duration-300">
           <div className="space-y-3">
             <span className="font-mono text-[10px] text-nura-purple tracking-widest block">
-              // SEC_PROTOCOL 03
+              // REPORTS
             </span>
             <h3 className="text-base font-normal tracking-tight text-white/90">
               Reportes Ejecutivos Automáticos

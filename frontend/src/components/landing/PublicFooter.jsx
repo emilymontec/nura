@@ -4,7 +4,7 @@ export default function PublicFooter() {
       <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-          <span>© 2026 NURA INTELLIGENCE Inc. ANALYTICS IA SYS.</span>
+          <span>© 2026 NURA INTELLIGENCE. All rights reserved.</span>
         </div>
         <div className="flex gap-6 text-white/40">
           <a href="#" className="hover:text-nura-electric transition-colors">

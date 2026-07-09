@@ -81,7 +81,7 @@ function Login() {
               disabled={loading}
               className="w-full py-3 mt-4 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all text-xs font-mono disabled:opacity-50"
             >
-              {loading ? 'CARGANDO...' : 'ENTRAR_()'}
+              {loading ? 'CARGANDO...' : 'ENTRAR()'}
             </button>
           </form>
 

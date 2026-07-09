@@ -6,9 +6,9 @@ export default function PublicHeader() {
     <header className="fixed top-0 left-0 w-full z-50 border-b border-white/[0.02] bg-nura-black/40 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 text-xs font-semibold tracking-[0.25em] text-white">
-          NURA{" "}
+          SITE{" "}
           <span className="text-white/30 font-light tracking-normal text-[10px]">
-            INTELLIGENCE
+            ANALYTICS
           </span>
         </Link>
 
@@ -29,16 +29,16 @@ export default function PublicHeader() {
 
         <div className="flex items-center gap-5 text-xs">
           <Link
-            to="/console"
+            to="/auth/login"
             className="text-white/40 hover:text-white transition-colors duration-300 font-mono text-[11px]"
           >
-            SYS_LOG
+            INICIAR SESIÓN
           </Link>
           <Link
-            to="/console"
+            to="/auth/register"
             className="px-3.5 py-1.5 rounded bg-white text-nura-black hover:bg-white/80 transition-all font-medium text-[11px] tracking-wide"
           >
-            INICIAR
+            REGISTRARSE
           </Link>
         </div>
       </div>

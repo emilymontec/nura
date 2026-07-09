@@ -7,7 +7,7 @@ export default function PublicCTA() {
       </h2>
       <div>
         <a
-          href="#"
+          href="/auth/login"
           className="inline-flex h-10 px-6 rounded bg-white text-nura-black text-xs font-medium items-center justify-center hover:bg-white/90 transition-all font-mono tracking-wide"
         >
           comenzar_analisis()
