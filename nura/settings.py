@@ -86,7 +86,7 @@ LOGIN_ON_EMAIL_CONFIRMATION = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 if os.getenv('MAILGUN_API_KEY') and os.getenv('MAILGUN_DOMAIN'):
     EMAIL_BACKEND = 'nura.mail_backend.MailgunAPIBackend'
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@localhost')
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'no-reply@{os.getenv("MAILGUN_DOMAIN")}')
 
 
 MIDDLEWARE = [
