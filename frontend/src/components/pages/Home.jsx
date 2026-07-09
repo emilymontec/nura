@@ -92,7 +92,7 @@ function Home() {
       {/* Features Section */}
       <section id="features" className="relative py-24 border-t border-white/[0.03] max-w-7xl mx-auto px-6 z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-light tracking-tight text-stark-public">
+          <h2 className="text-3xl md:text-4xl font-normal tracking-tight text-white">
             Funcionalidades
           </h2>
           <p className="text-white/40 text-sm md:text-base font-light max-w-xl mx-auto mt-4">

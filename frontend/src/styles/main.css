@@ -36,13 +36,6 @@
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.text-stark {
-  background: linear-gradient(180deg, #FFFFFF 40%, rgba(255, 255, 255, 0.4) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 .tech-grid {
   background-size: 32px 32px;
   background-image:
@@ -62,13 +55,6 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.text-stark-public {
-  background: linear-gradient(180deg, #FFFFFF 20%, rgba(255, 255, 255, 0.35) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .ambient-glow {

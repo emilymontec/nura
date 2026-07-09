@@ -8,7 +8,7 @@ export default function PublicHero() {
           <span className="w-1 h-1 rounded-full bg-nura-electric animate-ping" />
           NURA v1.2
         </div>
-        <h1 className="text-4xl md:text-6xl font-light tracking-tight text-stark-public leading-[1.1]">
+        <h1 className="text-4xl md:text-6xl font-light tracking-tight text-white leading-[1.1]">
           Ánalisis de datos <br />{" "}
           <span className="font-normal font-mono text-xl md:text-2xl text-white/60 block mt-2 tracking-normal">
             // asistida por IA.

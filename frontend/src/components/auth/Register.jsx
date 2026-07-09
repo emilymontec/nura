@@ -56,7 +56,7 @@ function Register() {
       <div className="z-10 w-full max-w-md p-6">
         <div className="pure-glass-public rounded-2xl p-8 space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-2xl font-light text-stark-public tracking-tight flex items-center justify-center gap-2">
+            <h1 className="text-2xl font-normal text-white tracking-tight flex items-center justify-center gap-2">
               <UserPlus className="w-6 h-6 text-nura-purple" /> CREAR CUENTA
             </h1>
             <p className="text-white/40 text-xs font-mono">Únete a Nura Intelligence</p>
