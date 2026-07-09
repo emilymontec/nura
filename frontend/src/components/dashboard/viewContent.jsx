@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   LayoutDashboard,
   Database,
@@ -24,6 +25,22 @@ import {
   FileSpreadsheet,
   Lightbulb,
 } from "lucide-react";
+
+async function getAuthHeaders(refreshAccessToken) {
+  let accessToken = localStorage.getItem('accessToken');
+  if (!accessToken) return {};
+  
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1]));
+    if (Date.now() >= payload.exp * 1000) {
+      accessToken = await refreshAccessToken();
+    }
+  } catch (e) {
+    accessToken = await refreshAccessToken();
+  }
+  
+  return accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {};
+}
 
 export const NAV_SECTIONS = [
   {
@@ -169,6 +186,7 @@ function ChatMessage({ role, text }) {
 
 export const VIEW_CONTENT = {
   dashboard: () => {
+    const { refreshAccessToken } = useAuth();
     const [context, setContext] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -176,7 +194,8 @@ export const VIEW_CONTENT = {
       const fetchContext = async () => {
         const API_BASE = import.meta.env.VITE_API_URL || '';
         try {
-          const res = await fetch(`${API_BASE}/api/sessions/default/`);
+          const headers = await getAuthHeaders(refreshAccessToken);
+          const res = await fetch(`${API_BASE}/api/sessions/default/`, { headers });
           if (res.ok) {
             const data = await res.json();
             setContext(data.dataset_context);
@@ -188,7 +207,7 @@ export const VIEW_CONTENT = {
         }
       };
       fetchContext();
-    }, []);
+    }, [refreshAccessToken]);
 
     const healthScore = context?.health?.health_score || 0;
     const rows = context?.summary?.rows || 0;
@@ -250,6 +269,7 @@ export const VIEW_CONTENT = {
   },
 
   datasets: () => {
+    const { refreshAccessToken } = useAuth();
     const [uploaded, setUploaded] = useState(null);
     const [context, setContext] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -266,8 +286,10 @@ export const VIEW_CONTENT = {
       formData.append('session_id', 'default');
       
       try {
+        const headers = await getAuthHeaders(refreshAccessToken);
         const response = await fetch(`${API_BASE}/api/analyze`, {
           method: 'POST',
+          headers,
           body: formData
         });
         const data = await response.json();
@@ -316,6 +338,7 @@ export const VIEW_CONTENT = {
   },
 
   "motor-analitico": () => {
+    const { refreshAccessToken } = useAuth();
     const [context, setContext] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -323,7 +346,8 @@ export const VIEW_CONTENT = {
       const fetchContext = async () => {
         const API_BASE = import.meta.env.VITE_API_URL || '';
         try {
-          const res = await fetch(`${API_BASE}/api/sessions/default/`);
+          const headers = await getAuthHeaders(refreshAccessToken);
+          const res = await fetch(`${API_BASE}/api/sessions/default/`, { headers });
           if (res.ok) {
             const data = await res.json();
             setContext(data.dataset_context);
@@ -335,7 +359,7 @@ export const VIEW_CONTENT = {
         }
       };
       fetchContext();
-    }, []);
+    }, [refreshAccessToken]);
 
     if (loading) return <div className="text-white/60 font-mono text-xs p-4">Cargando motor analítico...</div>;
     if (!context || !context.summary) return <div className="text-white/60 font-mono text-xs p-4">No hay datos analizados. Sube un dataset primero.</div>;
@@ -423,8 +447,9 @@ export const VIEW_CONTENT = {
   },
 
   "chat-inteligente": () => {
+    const { refreshAccessToken } = useAuth();
     const [messages, setMessages] = useState([
-      { role: "assistant", text: "¡Hola! Soy el asistente de analítica de NURA. Puedo responder preguntas sobre tu dataset en lenguaje natural. ¿Qué deseas consultar?" },
+      { role: "assistant", text: "¡Hola! Soy el asistente de analítica. Puedo responder preguntas sobre tu dataset en lenguaje natural. ¿Qué deseas consultar?" },
     ]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -439,9 +464,13 @@ export const VIEW_CONTENT = {
 
       const API_BASE = import.meta.env.VITE_API_URL || '';
       try {
+        const headers = await getAuthHeaders(refreshAccessToken);
         const response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...headers
+          },
           body: JSON.stringify({ message: text, session_id: 'default' })
         });
         const data = await response.json();
@@ -502,6 +531,7 @@ export const VIEW_CONTENT = {
   },
 
   "reportes-ia": () => {
+    const { refreshAccessToken } = useAuth();
     const [context, setContext] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -509,7 +539,8 @@ export const VIEW_CONTENT = {
       const fetchContext = async () => {
         const API_BASE = import.meta.env.VITE_API_URL || '';
         try {
-          const res = await fetch(`${API_BASE}/api/sessions/default/`);
+          const headers = await getAuthHeaders(refreshAccessToken);
+          const res = await fetch(`${API_BASE}/api/sessions/default/`, { headers });
           if (res.ok) {
             const data = await res.json();
             setContext(data.dataset_context);
@@ -521,7 +552,7 @@ export const VIEW_CONTENT = {
         }
       };
       fetchContext();
-    }, []);
+    }, [refreshAccessToken]);
 
     if (loading) return <div className="text-white/60 font-mono text-xs p-4">Cargando reporte IA...</div>;
     if (!context) return <div className="text-white/60 font-mono text-xs p-4">No hay datos para reportar. Sube un dataset primero.</div>;
@@ -607,14 +638,108 @@ export const VIEW_CONTENT = {
     );
   },
 
-  "mg-perfil": () => (
-    <div className="space-y-4 font-mono text-xs">
-      <h2 className="text-lg text-white font-light">// usuario_perfil</h2>
-      <div className="p-4 border border-nura-border rounded bg-nura-gray/60 text-white/40">
-        Plan Enterprise Analytics &middot; 142,500 / 500,000 registros procesados este mes.
+  "mg-perfil": () => {
+    const { user, getProfile, updateProfile } = useAuth();
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState({ user: {} });
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+      const fetchProfile = async () => {
+        try {
+          const data = await getProfile();
+          setProfile(data);
+          setFormData({
+            ...data,
+            user: {
+              first_name: data?.user?.first_name || '',
+              last_name: data?.user?.last_name || ''
+            }
+          });
+        } catch (e) {
+          console.error('Error fetching profile:', e);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchProfile();
+    }, [getProfile]);
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setSaving(true);
+      setMessage('');
+      try {
+        const updated = await updateProfile(formData);
+        setProfile(updated);
+        setMessage('Perfil actualizado correctamente');
+      } catch (e) {
+        setMessage('Error al actualizar el perfil');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="space-y-4 font-mono text-xs">
+          <h2 className="text-lg text-white font-light">// usuario_perfil</h2>
+          <div className="p-4 border border-nura-border rounded bg-nura-gray/60 text-white/40">
+            Cargando perfil...
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4 font-mono text-xs">
+        <h2 className="text-lg text-white font-light">// usuario_perfil</h2>
+        {message && (
+          <div className={`p-3 rounded border ${message.includes('correctamente') ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
+            {message}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4 pure-glass rounded-xl p-5">
+          <div className="space-y-1">
+            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Email</label>
+            <input
+              type="email"
+              value={user?.email || ''}
+              disabled
+              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white/70 text-xs outline-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Nombre</label>
+            <input
+              type="text"
+              value={formData.user?.first_name || ''}
+              onChange={(e) => setFormData({ ...formData, user: { ...formData.user, first_name: e.target.value } })}
+              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Apellido</label>
+            <input
+              type="text"
+              value={formData.user?.last_name || ''}
+              onChange={(e) => setFormData({ ...formData, user: { ...formData.user, last_name: e.target.value } })}
+              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2.5 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all disabled:opacity-50 text-[11px]"
+          >
+            {saving ? 'Guardando...' : 'guardar_cambios()'}
+          </button>
+        </form>
       </div>
-    </div>
-  ),
+    );
+  },
   "mg-configuracion": () => (
     <div className="space-y-4 font-mono text-xs">
       <h2 className="text-lg text-white font-light">// conf_sistema</h2>

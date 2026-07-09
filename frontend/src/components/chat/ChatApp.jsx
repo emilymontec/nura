@@ -4,6 +4,7 @@ import ChatHeader from './ChatHeader';
 import ChatContainer from './ChatContainer';
 import Composer from './Composer';
 import AnalyticsPanel from '../analytics/AnalyticsPanel';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -15,10 +16,28 @@ function ChatApp() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const chatContainerRef = useRef(null);
+  const { refreshAccessToken } = useAuth();
+
+  const getAuthHeaders = async () => {
+    let accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) return {};
+    
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      if (Date.now() >= payload.exp * 1000) {
+        accessToken = await refreshAccessToken();
+      }
+    } catch (e) {
+      accessToken = await refreshAccessToken();
+    }
+    
+    return accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {};
+  };
 
   const fetchSessions = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/sessions`);
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE}/api/sessions`, { headers });
       const data = await response.json();
       setSessions(data.sessions || []);
     } catch (error) {
@@ -37,7 +56,8 @@ function ChatApp() {
   const loadSession = async (id) => {
     setSessionId(id);
     try {
-      const response = await fetch(`${API_BASE}/api/sessions/${id}`);
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_BASE}/api/sessions/${id}`, { headers });
       const data = await response.json();
       setMessages(data.messages || []);
       setDatasetContext(data.dataset_context || null);
@@ -52,9 +72,13 @@ function ChatApp() {
     setLoading(true);
 
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...headers 
+        },
         body: JSON.stringify({
           message: text,
           session_id: sessionId
@@ -78,8 +102,10 @@ function ChatApp() {
     setLoading(true);
 
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
+        headers: { ...headers },
         body: formData
       });
       const data = await response.json();
