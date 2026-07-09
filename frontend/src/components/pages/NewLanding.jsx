@@ -5,7 +5,7 @@ import PublicMetrics from "../landing/PublicMetrics";
 import PublicCTA from "../landing/PublicCTA";
 import PublicFooter from "../landing/PublicFooter";
 
-function Home() {
+export default function NewLanding() {
   return (
     <div className="bg-nura-black text-white font-sans antialiased selection:bg-nura-electric/20 overflow-x-hidden min-h-screen">
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 tech-grid-public">
@@ -22,5 +22,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home;

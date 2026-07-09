@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import AmbientBackground from '../landing/AmbientBackground';
-import Navigation from '../landing/Navigation';
-import '../../styles/landing.css';
+import { LogIn } from 'lucide-react';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -13,11 +11,6 @@ function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.body.classList.add('landing-active');
-    return () => document.body.classList.remove('landing-active');
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -25,7 +18,7 @@ function Login() {
 
     try {
       await login(email, password);
-      navigate('/chat');
+      navigate('/console');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -34,128 +27,72 @@ function Login() {
   };
 
   return (
-    <div className="nura-landing">
-      <AmbientBackground />
-      <Navigation />
-      <div className="container" style={{ paddingTop: '150px' }}>
-        <div className="ticket" style={{ maxWidth: '500px', margin: '0 auto' }}>
-          <div className="ticket-head">
-            <div className="ticket-head-l">
-              <span className="rec-dot"></span>
-              <span>INICIAR SESIÓN</span>
-            </div>
+    <div className="bg-nura-black text-white font-sans antialiased min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 tech-grid-public">
+        <div className="absolute top-[-10%] left-[25%] w-[70vw] h-[40vw] rounded-full bg-nura-electric ambient-glow animate-pulse-slow" />
+      </div>
+
+      <div className="z-10 w-full max-w-md p-6">
+        <div className="pure-glass-public rounded-2xl p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-light text-stark-public tracking-tight flex items-center justify-center gap-2">
+              <LogIn className="w-6 h-6 text-nura-electric" /> INICIAR SESIÓN
+            </h1>
+            <p className="text-white/40 text-xs font-mono">Accede al panel de analítica</p>
           </div>
-          <div className="ticket-body">
 
-
-            {error && (
-              <div style={{
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: '12px',
-                color: 'var(--rust)',
-                marginBottom: '20px',
-                padding: '10px 16px',
-                background: 'rgba(248, 113, 113, 0.1)',
-                borderLeft: '2px solid var(--rust)'
-              }}>
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  fontSize: '12px',
-                  color: 'var(--ink-soft)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em'
-                }} htmlFor="email">
-                  Correo Electrónico
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="tu@email.com"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 'var(--radius)',
-                    padding: '12px 16px',
-                    color: 'var(--ink)',
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '14px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = 'var(--brass)'}
-                  onBlur={(e) => e.target.style.borderColor = 'var(--line)'}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  fontSize: '12px',
-                  color: 'var(--ink-soft)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em'
-                }} htmlFor="password">
-                  Contraseña
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="Tu contraseña"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 'var(--radius)',
-                    padding: '12px 16px',
-                    color: 'var(--ink)',
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '14px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = 'var(--brass)'}
-                  onBlur={(e) => e.target.style.borderColor = 'var(--line)'}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  marginTop: '8px'
-                }}
-              >
-                {loading ? 'Cargando...' : 'Iniciar Sesión'}
-              </button>
-            </form>
-
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              marginTop: '24px',
-              justifyContent: 'center',
-              fontFamily: 'IBM Plex Mono, monospace',
-              fontSize: '12px'
-            }}>
-              <Link to="/password-reset" style={{ color: 'var(--brass)', textDecoration: 'none' }}>¿Olvidaste tu contraseña?</Link>
-              <span style={{ color: 'var(--ink-faint)' }}>·</span>
-              <Link to="/register" style={{ color: 'var(--brass)', textDecoration: 'none' }}>Crear una cuenta</Link>
+          {error && (
+            <div className="p-3 bg-red-500/10 border-l-2 border-red-500 text-red-400 text-xs font-mono">
+              {error}
             </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-white/40 uppercase tracking-widest font-mono">
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="tu@email.com"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-sm transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-white/40 uppercase tracking-widest font-mono">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Tu contraseña"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-sm transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 mt-4 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all text-xs font-mono disabled:opacity-50"
+            >
+              {loading ? 'CARGANDO...' : 'ENTRAR_()'}
+            </button>
+          </form>
+
+          <div className="pt-4 flex items-center justify-center gap-4 text-xs font-mono">
+            <Link to="/auth/password-reset" className="text-white/40 hover:text-white transition-colors">
+              ¿Olvidaste tu contraseña?
+            </Link>
+            <span className="text-white/20">|</span>
+            <Link to="/auth/register" className="text-nura-electric hover:text-white transition-colors">
+              Crear cuenta
+            </Link>
           </div>
         </div>
       </div>

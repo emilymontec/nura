@@ -22,8 +22,8 @@ function Navigation() {
           </>
         ) : (
           <>
-            <Link to="/login">Iniciar Sesión</Link>
-            <Link to="/register" className="cta">Crear Cuenta</Link>
+            <Link to="/auth/login">Iniciar Sesión</Link>
+            <Link to="/auth/register" className="cta">Crear Cuenta</Link>
           </>
         )}
       </div>
