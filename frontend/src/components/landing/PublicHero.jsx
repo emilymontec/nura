@@ -6,10 +6,10 @@ export default function PublicHero() {
       <div className="lg:col-span-6 space-y-8 text-left">
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-white/[0.02] border border-white/[0.05] font-mono text-[10px] text-nura-electric tracking-wider uppercase">
           <span className="w-1 h-1 rounded-full bg-nura-electric animate-ping" />
-          NURA v1.2 // Active
+          NURA v1.2
         </div>
         <h1 className="text-4xl md:text-6xl font-light tracking-tight text-stark-public leading-[1.1]">
-          Analítica de datos <br />{" "}
+          Ánalisis de datos <br />{" "}
           <span className="font-normal font-mono text-xl md:text-2xl text-white/60 block mt-2 tracking-normal">
             // asistida por IA.
           </span>
