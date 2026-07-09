@@ -13,18 +13,18 @@ export default function PublicHeader() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-[11px] font-medium uppercase tracking-wider text-white/40">
-          <a href="#" className="hover:text-white transition-colors duration-300">
-            Analítica
-          </a>
-          <a href="#features" className="hover:text-white transition-colors duration-300">
-            Funciones
-          </a>
-          <a href="#dashboard" className="hover:text-white transition-colors duration-300">
-            Métricas
-          </a>
-          <a href="#" className="hover:text-white transition-colors duration-300">
-            Docs
-          </a>
+          <Link to="/pricing" className="hover:text-white transition-colors duration-300">
+            Precios
+          </Link>
+          <Link to="/docs" className="hover:text-white transition-colors duration-300">
+            Documentación
+          </Link>
+          <Link to="/contact" className="hover:text-white transition-colors duration-300">
+            Contacto
+          </Link>
+          <Link to="/about" className="hover:text-white transition-colors duration-300">
+            Acerca de
+          </Link>
         </nav>
 
         <div className="flex items-center gap-5 text-xs">

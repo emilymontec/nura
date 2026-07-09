@@ -9,6 +9,12 @@ import PasswordReset from './components/auth/PasswordReset';
 import PasswordResetConfirm from './components/auth/PasswordResetConfirm';
 import VerifyEmail from './components/auth/VerifyEmail';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import Pricing from './components/pages/Pricing';
+import Docs from './components/pages/Docs';
+import Contact from './components/pages/Contact';
+import About from './components/pages/About';
+import Terms from './components/pages/Terms';
+import Privacy from './components/pages/Privacy';
 import './styles/main.css';
 
 function App() {
@@ -17,6 +23,12 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/docs" element={<Docs />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/console" element={
             <ProtectedRoute>
               <DashboardLayout />
