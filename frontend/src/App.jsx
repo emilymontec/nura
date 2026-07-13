@@ -38,7 +38,6 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<MainViewport currentView="dashboard" />} />
             <Route path="datasets" element={<MainViewport currentView="datasets" />} />
-            <Route path="motor-analitico" element={<MainViewport currentView="motor-analitico" />} />
             <Route path="chat-inteligente" element={<MainViewport currentView="chat-inteligente" />} />
             <Route path="reportes-ia" element={<MainViewport currentView="reportes-ia" />} />
             <Route path="mg-perfil" element={<MainViewport currentView="mg-perfil" />} />

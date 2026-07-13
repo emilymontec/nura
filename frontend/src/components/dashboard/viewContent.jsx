@@ -54,7 +54,6 @@ export const NAV_SECTIONS = [
   {
     label: "02 // AI_ANALYTICS",
     items: [
-      { id: "motor-analitico", icon: Brain, label: "motor_analitico", accent: "purple" },
       { id: "chat-inteligente", icon: MessageSquareText, label: "chat_inteligente", accent: "purple" },
       { id: "reportes-ia", icon: FileText, label: "reportes_ia", accent: "purple" },
     ],
@@ -294,115 +293,6 @@ export const VIEW_CONTENT = {
             </div>
           </div>
         )}
-      </div>
-    );
-  },
-
-  "motor-analitico": () => {
-    const { refreshAccessToken } = useAuth();
-    const [context, setContext] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-      const fetchContext = async () => {
-        const API_BASE = import.meta.env.VITE_API_URL || '';
-        try {
-          const headers = await getAuthHeaders(refreshAccessToken);
-          const res = await fetch(`${API_BASE}/api/sessions/default/`, { headers });
-          if (res.ok) {
-            const data = await res.json();
-            setContext(data.dataset_context);
-          }
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchContext();
-    }, [refreshAccessToken]);
-
-    if (loading) return <div className="text-white/60 font-mono text-xs p-4">Cargando motor analítico...</div>;
-    if (!context || !context.summary) return <div className="text-white/60 font-mono text-xs p-4">No hay datos analizados. Sube un dataset primero.</div>;
-
-    const summary = context.summary || {};
-    const anomalies = context.anomalies || [];
-    const trends = context.trends || [];
-    const health = context.health || {};
-
-    return (
-      <div className="space-y-4 font-mono text-xs">
-        <h2 className="text-lg text-white font-light">// motor_analitico</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="pure-glass rounded-xl p-4 space-y-3">
-            <span className="text-[9px] text-white/30 uppercase tracking-widest block">Estadísticas Descriptivas</span>
-            <div className="space-y-2">
-              {[
-                { label: "Filas totales", value: summary.rows || 0 },
-                { label: "Columnas", value: summary.columns || 0 },
-                { label: "Datos faltantes", value: summary.total_missing || 0 },
-                { label: "Filas duplicadas", value: summary.duplicate_rows || 0 },
-              ].map((s, i) => (
-                <div key={i} className="flex justify-between py-1.5 border-b border-white/[0.03]">
-                  <span className="text-white/40">{s.label}</span>
-                  <span className="text-white/80">{s.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="pure-glass rounded-xl p-4 space-y-3">
-            <span className="text-[9px] text-white/30 uppercase tracking-widest block">Detección de Anomalías</span>
-            {summary.total_missing > 0 ? (
-              <div className="flex items-center gap-3 p-3 rounded bg-amber-500/5 border border-amber-500/20">
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-none" />
-                <div>
-                  <p className="text-amber-400 text-[11px] font-medium">{summary.total_missing} valores nulos detectados</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 p-3 rounded bg-emerald-500/5 border border-emerald-500/20">
-                <TrendingUp className="w-4 h-4 text-emerald-400 flex-none" />
-                <div>
-                  <p className="text-emerald-400 text-[11px] font-medium">Dataset completo</p>
-                  <p className="text-white/40 text-[10px] mt-0.5">No hay valores nulos</p>
-                </div>
-              </div>
-            )}
-            {summary.duplicate_rows === 0 ? (
-              <div className="flex items-center gap-3 p-3 rounded bg-emerald-500/5 border border-emerald-500/20">
-                <TrendingUp className="w-4 h-4 text-emerald-400 flex-none" />
-                <div>
-                  <p className="text-emerald-400 text-[11px] font-medium">0 registros duplicados</p>
-                  <p className="text-white/40 text-[10px] mt-0.5">Dataset limpio sin redundancias</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 p-3 rounded bg-amber-500/5 border border-amber-500/20">
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-none" />
-                <div>
-                  <p className="text-amber-400 text-[11px] font-medium">{summary.duplicate_rows} registros duplicados</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="pure-glass rounded-xl p-4 space-y-3">
-          <span className="text-[9px] text-white/30 uppercase tracking-widest block">Tendencias Identificadas</span>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {trends.slice(0, 3).map((t, i) => (
-              <div key={i} className="p-3 rounded bg-white/[0.02] border border-white/[0.04]">
-                <span className="text-white/30 text-[10px]">{t.column}</span>
-                <p className="text-white/80 text-xs mt-1">{t.trend_direction}</p>
-                <span className="text-emerald-400 text-[10px]">Volatilidad: {t.volatility}</span>
-              </div>
-            ))}
-            {(!trends || trends.length === 0) && (
-              <div className="p-3 rounded bg-white/[0.02] border border-white/[0.04] col-span-3 text-white/40 text-xs">
-                No se identificaron tendencias numéricas claras en los datos proporcionados.
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     );
   },
