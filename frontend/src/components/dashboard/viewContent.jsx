@@ -211,10 +211,7 @@ export const VIEW_CONTENT = {
 
     const healthScore = context?.health?.health_score || 0;
     const rows = context?.summary?.rows || 0;
-    const missing = context?.summary?.total_missing || 0;
-    const duplicates = context?.summary?.duplicate_rows || 0;
     const cols = context?.summary?.columns || 0;
-    const fileName = context?.file_name || "Ninguno";
 
     return (
       <div className="space-y-6">
@@ -226,42 +223,21 @@ export const VIEW_CONTENT = {
           <div className="text-white/60 font-mono text-xs">Cargando panel...</div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard label="// BUSINESS_HEALTH_SCORE" value={healthScore.toFixed(0)} unit="%" barWidth={`${healthScore}%`} />
-              <MetricCard label="// REGISTROS_PROCESADOS" value={rows} unit="filas" barWidth="60%" />
-              <MetricCard
-                label="// PROVEEDOR_IA_ACTIVO"
-                value={
-                  <select className="bg-transparent text-nura-electric text-xs border border-nura-electric/30 rounded px-1 py-0.5 outline-none cursor-pointer">
-                    <option className="bg-nura-black">Groq</option>
-                    <option className="bg-nura-black">Cerebras</option>
-                    <option className="bg-nura-black">OpenRouter</option>
-                  </select>
-                }
-              />
-              <MetricCard
-                label="// ANOMALÍAS_DETECTADAS"
-                value={
-                  <span className="text-amber-400">{missing} nulos <span className="text-white/30 text-xs">/ {duplicates} duplicados</span></span>
-                }
-                accent="purple"
-                barWidth="100%"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <MetricCard label="// HEALTH_SCORE" value={healthScore.toFixed(0)} unit="%" barWidth={`${healthScore}%`} />
+              <MetricCard label="// REGISTROS" value={rows} unit="filas" barWidth="60%" />
+              <MetricCard label="// COLUMNAS" value={cols} unit="columnas" />
             </div>
-            <div className="pure-glass rounded-xl p-5">
-              <div className="flex items-center justify-between border-b border-nura-border pb-3 mb-4 font-mono text-xs">
-                <span className="text-white/80">Dataset_Activo // {fileName}</span>
-                <span className={`text-[10px] px-1.5 rounded ${context ? 'text-nura-electric bg-nura-electric/10' : 'text-white/40 bg-white/10'}`}>
-                  {context ? 'CONECTADO' : 'SIN CONEXIÓN'}
-                </span>
+            {context && (
+              <div className="pure-glass rounded-xl p-5">
+                <div className="flex items-center justify-between border-b border-nura-border pb-3 mb-4 font-mono text-xs">
+                  <span className="text-white/80">Dataset_Activo // {context.file_name || "Ninguno"}</span>
+                  <span className="text-[10px] px-1.5 rounded bg-nura-electric/10 text-nura-electric">
+                    CONECTADO
+                  </span>
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-xs">
-                <div><span className="text-white/30">Filas totales:</span><span className="text-white/70 ml-2">{rows}</span></div>
-                <div><span className="text-white/30">Columnas:</span><span className="text-white/70 ml-2">{cols}</span></div>
-                <div><span className="text-white/30">Valores nulos:</span><span className="text-amber-400 ml-2">{missing}</span></div>
-                <div><span className="text-white/30">Duplicados:</span><span className="text-emerald-400 ml-2">{duplicates}</span></div>
-              </div>
-            </div>
+            )}
           </>
         )}
       </div>
@@ -814,7 +790,7 @@ export const VIEW_CONTENT = {
     <div className="space-y-4 font-mono text-xs">
       <h2 className="text-lg text-white font-light">// conf_sistema</h2>
       <div className="p-4 border border-nura-border rounded bg-nura-gray/60 text-white/40">
-        Motor analítico: [HABILITADO] &middot; Chat IA: [HABILITADO] &middot; Reportes automáticos: [HABILITADO]
+        Configuración del sistema
       </div>
     </div>
   ),
@@ -822,7 +798,7 @@ export const VIEW_CONTENT = {
     <div className="space-y-4 font-mono text-xs">
       <h2 className="text-lg text-white font-light">// asignacion_cuotas</h2>
       <div className="p-4 border border-nura-border rounded bg-nura-gray/60 text-white/40">
-        Plan Enterprise Dedicado: 142,500 registros de 500,000 procesados este mes.
+        Información de suscripción
       </div>
     </div>
   ),
@@ -830,7 +806,7 @@ export const VIEW_CONTENT = {
     <div className="space-y-4 font-mono text-xs">
       <h2 className="text-lg text-white font-light">// integraciones_api</h2>
       <div className="p-4 border border-nura-border rounded bg-nura-gray/60 text-white/40">
-        API REST Analytics activa. Webhooks configurados para notificaciones de procesamiento por lote.
+        Integraciones API
       </div>
     </div>
   ),
