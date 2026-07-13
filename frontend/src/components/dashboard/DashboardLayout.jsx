@@ -22,6 +22,10 @@ export default function DashboardLayout() {
     setCurrentView(viewId);
   }, []);
 
+  const handleNewAnalysis = useCallback(() => {
+    setCurrentView("datasets");
+  }, []);
+
   const label = findItemLabel(currentView);
   const sysPath = `root / ${label}`;
 
@@ -34,7 +38,7 @@ export default function DashboardLayout() {
       <SidebarNav currentView={currentView} onNavigate={handleNavigate} />
 
       <main className="flex-1 bg-nura-black z-10 flex flex-col overflow-hidden relative">
-        <HeaderBar currentPath={sysPath} />
+        <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
         <MainViewport currentView={currentView} />
         <DashboardFooter />
       </main>

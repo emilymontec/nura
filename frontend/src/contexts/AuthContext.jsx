@@ -312,6 +312,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const changePassword = async (old_password, new_password1, new_password2) => {
+    try {
+      let accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) throw new Error('No autenticado');
+
+      let response = await fetch(`${API_BASE_URL}/auth/password/change/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ old_password, new_password1, new_password2 }),
+      });
+
+      if (response.status === 401) {
+        accessToken = await refreshAccessToken();
+        if (!accessToken) throw new Error('Sesión expirada');
+        response = await fetch(`${API_BASE_URL}/auth/password/change/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ old_password, new_password1, new_password2 }),
+        });
+      }
+
+      if (response.ok) {
+        return true;
+      }
+      const data = await response.json();
+      throw new Error(data.detail || data.new_password2?.[0] || data.old_password?.[0] || 'Error al cambiar la contraseña');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -324,6 +362,7 @@ export const AuthProvider = ({ children }) => {
         confirmResetPassword,
         getProfile,
         updateProfile,
+        changePassword,
         refreshAccessToken,
       }}
     >

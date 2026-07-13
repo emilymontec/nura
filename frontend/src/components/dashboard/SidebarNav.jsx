@@ -1,8 +1,43 @@
 import { ChevronsUpDown, LogOut } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { NAV_SECTIONS } from "./viewContent";
 import SidebarButton from "./SidebarButton";
 
 export default function SidebarNav({ currentView, onNavigate }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user) return "OP";
+    const firstName = user.first_name || "";
+    const lastName = user.last_name || "";
+    const username = user.username || "";
+    if (firstName && lastName) {
+      return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    }
+    if (firstName) return firstName[0].toUpperCase();
+    if (lastName) return lastName[0].toUpperCase();
+    return username[0].toUpperCase() || "OP";
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return "Niels_Operator";
+    const firstName = user.first_name || "";
+    const lastName = user.last_name || "";
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+    return user.username || "Niels_Operator";
+  };
+
   return (
     <aside className="w-64 border-r border-nura-border bg-nura-gray flex flex-col justify-between z-10 flex-none">
       <div className="flex flex-col flex-1 overflow-y-auto">
@@ -51,18 +86,20 @@ export default function SidebarNav({ currentView, onNavigate }) {
         <div className="p-3 border-t border-nura-border bg-black/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-mono text-xs font-medium">
-              OP
+              {getUserInitials()}
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] font-medium text-white/80">
-                Niels_Operator
+                {getUserDisplayName()}
               </span>
               <span className="text-[8px] font-mono text-emerald-500">
                 Tier: Enterprise
               </span>
             </div>
           </div>
-          <LogOut className="w-3.5 h-3.5 text-white/30 hover:text-white cursor-pointer transition-colors flex-none" />
+          <button onClick={handleLogout} className="flex items-center justify-center">
+            <LogOut className="w-3.5 h-3.5 text-white/30 hover:text-white cursor-pointer transition-colors flex-none" />
+          </button>
         </div>
       </div>
     </aside>

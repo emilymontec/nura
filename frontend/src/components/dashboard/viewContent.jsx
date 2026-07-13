@@ -639,20 +639,22 @@ export const VIEW_CONTENT = {
   },
 
   "mg-perfil": () => {
-    const { user, getProfile, updateProfile } = useAuth();
+    const { user, getProfile, updateProfile, changePassword } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [formData, setFormData] = useState({ user: {} });
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [savingPassword, setSavingPassword] = useState(false);
     const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState('');
+    const [profileForm, setProfileForm] = useState({ user: { first_name: '', last_name: '' } });
+    const [passwordForm, setPasswordForm] = useState({ old_password: '', new_password1: '', new_password2: '' });
 
     useEffect(() => {
       const fetchProfile = async () => {
         try {
           const data = await getProfile();
           setProfile(data);
-          setFormData({
-            ...data,
+          setProfileForm({
             user: {
               first_name: data?.user?.first_name || '',
               last_name: data?.user?.last_name || ''
@@ -667,18 +669,39 @@ export const VIEW_CONTENT = {
       fetchProfile();
     }, [getProfile]);
 
-    const handleSubmit = async (e) => {
+    const handleProfileSubmit = async (e) => {
       e.preventDefault();
-      setSaving(true);
+      setSavingProfile(true);
       setMessage('');
+      setMessageType('');
       try {
-        const updated = await updateProfile(formData);
+        const updated = await updateProfile(profileForm);
         setProfile(updated);
         setMessage('Perfil actualizado correctamente');
-      } catch (e) {
-        setMessage('Error al actualizar el perfil');
+        setMessageType('success');
+      } catch (error) {
+        setMessage(error.message || 'Error al actualizar el perfil');
+        setMessageType('error');
       } finally {
-        setSaving(false);
+        setSavingProfile(false);
+      }
+    };
+
+    const handlePasswordSubmit = async (e) => {
+      e.preventDefault();
+      setSavingPassword(true);
+      setMessage('');
+      setMessageType('');
+      try {
+        await changePassword(passwordForm.old_password, passwordForm.new_password1, passwordForm.new_password2);
+        setMessage('Contraseña cambiada correctamente');
+        setMessageType('success');
+        setPasswordForm({ old_password: '', new_password1: '', new_password2: '' });
+      } catch (error) {
+        setMessage(error.message || 'Error al cambiar la contraseña');
+        setMessageType('error');
+      } finally {
+        setSavingPassword(false);
       }
     };
 
@@ -694,49 +717,96 @@ export const VIEW_CONTENT = {
     }
 
     return (
-      <div className="space-y-4 font-mono text-xs">
+      <div className="space-y-6 font-mono text-xs">
         <h2 className="text-lg text-white font-light">// usuario_perfil</h2>
+        
         {message && (
-          <div className={`p-3 rounded border ${message.includes('correctamente') ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
+          <div className={`p-3 rounded border ${messageType === 'success' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
             {message}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4 pure-glass rounded-xl p-5">
-          <div className="space-y-1">
-            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Email</label>
-            <input
-              type="email"
-              value={user?.email || ''}
-              disabled
-              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white/70 text-xs outline-none"
-            />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="pure-glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm text-white font-medium mb-4">Información personal</h3>
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Email</label>
+                <input
+                  type="email"
+                  value={user?.email || ''}
+                  disabled
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white/70 text-xs outline-none cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Nombre</label>
+                <input
+                  type="text"
+                  value={profileForm.user.first_name}
+                  onChange={(e) => setProfileForm({ ...profileForm, user: { ...profileForm.user, first_name: e.target.value } })}
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Apellido</label>
+                <input
+                  type="text"
+                  value={profileForm.user.last_name}
+                  onChange={(e) => setProfileForm({ ...profileForm, user: { ...profileForm.user, last_name: e.target.value } })}
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="px-4 py-2.5 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all disabled:opacity-50 text-[11px]"
+              >
+                {savingProfile ? 'Guardando...' : 'guardar_cambios()'}
+              </button>
+            </form>
           </div>
-          <div className="space-y-1">
-            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Nombre</label>
-            <input
-              type="text"
-              value={formData.user?.first_name || ''}
-              onChange={(e) => setFormData({ ...formData, user: { ...formData.user, first_name: e.target.value } })}
-              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
-            />
+
+          <div className="pure-glass rounded-xl p-5 space-y-4">
+            <h3 className="text-sm text-white font-medium mb-4">Cambiar contraseña</h3>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Contraseña actual</label>
+                <input
+                  type="password"
+                  value={passwordForm.old_password}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, old_password: e.target.value })}
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Nueva contraseña</label>
+                <input
+                  type="password"
+                  value={passwordForm.new_password1}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, new_password1: e.target.value })}
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-white/40 text-[10px] uppercase tracking-widest">Confirmar nueva contraseña</label>
+                <input
+                  type="password"
+                  value={passwordForm.new_password2}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, new_password2: e.target.value })}
+                  className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={savingPassword}
+                className="px-4 py-2.5 rounded-lg bg-nura-purple/20 border border-nura-purple/30 text-nura-purple hover:bg-nura-purple/30 transition-all disabled:opacity-50 text-[11px]"
+              >
+                {savingPassword ? 'Cambiando...' : 'cambiar_contraseña()'}
+              </button>
+            </form>
           </div>
-          <div className="space-y-1">
-            <label className="block text-white/40 text-[10px] uppercase tracking-widest">Apellido</label>
-            <input
-              type="text"
-              value={formData.user?.last_name || ''}
-              onChange={(e) => setFormData({ ...formData, user: { ...formData.user, last_name: e.target.value } })}
-              className="w-full bg-white/5 border border-nura-border rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-nura-electric/40 text-xs"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2.5 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all disabled:opacity-50 text-[11px]"
-          >
-            {saving ? 'Guardando...' : 'guardar_cambios()'}
-          </button>
-        </form>
+        </div>
       </div>
     );
   },
