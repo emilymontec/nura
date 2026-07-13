@@ -4,6 +4,20 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+class Workspace(models.Model):
+    name = models.CharField(max_length=200)
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='workspace')
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.owner.email}'s Workspace"
+
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     avatar = models.URLField(blank=True, null=True)
@@ -31,6 +45,7 @@ class ChatSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_temporary = models.BooleanField(default=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='chat_sessions')
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, null=True, blank=True, related_name='chat_sessions')
 
     class Meta:
         ordering = ["-updated_at"]

@@ -58,8 +58,11 @@ REST_AUTH = {
     'TOKEN_MODEL': None,
     'JWT_AUTH_COOKIE': None,
     'JWT_AUTH_REFRESH_COOKIE': None,
+    'JWT_AUTH_HTTPONLY': False,
+    'JWT_AUTH_RETURN_EXPIRATION': False,
     'REGISTER_SERIALIZER': 'dj_rest_auth.registration.serializers.RegisterSerializer',
     'PASSWORD_RESET_SERIALIZER': 'nura.serializers.CustomPasswordResetSerializer',
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
 }
 
 from datetime import timedelta

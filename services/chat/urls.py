@@ -19,4 +19,6 @@ urlpatterns = [
     path('sessions/<str:session_id>/delete', views.delete_session, name='delete_session-no-slash'),
     path('profile/', views.user_profile, name='user_profile'),
     path('profile', views.user_profile, name='user_profile-no-slash'),
+    path('workspace/', views.user_workspace, name='user_workspace'),
+    path('workspace', views.user_workspace, name='user_workspace-no-slash'),
 ]

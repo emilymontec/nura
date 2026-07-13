@@ -14,8 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import ChatSession, ChatMessage, UserProfile
-from .serializers import UserProfileSerializer, UserSerializer
+from .models import ChatSession, ChatMessage, UserProfile, Workspace
+from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer
 from analytics.analyzer import (
     load_csv, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
@@ -31,6 +31,7 @@ User = get_user_model()
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
+        Workspace.objects.create(owner=instance, name=f"Espacio de trabajo de {instance.email}")
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
@@ -287,3 +288,18 @@ def user_profile(request):
             
             return Response(UserProfileSerializer(profile).data)
         return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_workspace(request):
+    workspace, created = Workspace.objects.get_or_create(owner=request.user, defaults={'name': f"Espacio de trabajo de {request.user.email}"})
+    if request.method == 'GET':
+        serializer = WorkspaceSerializer(workspace)
+        return Response(serializer.data)
+    elif request.method == 'PUT':
+        serializer = WorkspaceSerializer(workspace, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

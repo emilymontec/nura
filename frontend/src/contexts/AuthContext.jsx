@@ -350,6 +350,74 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const getWorkspace = async () => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) return null;
+      const response = await fetch(`${API_BASE_URL}/workspace/`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          const retry = await fetch(`${API_BASE_URL}/workspace/`, {
+            headers: { 'Authorization': `Bearer ${newToken}` },
+          });
+          if (retry.ok) return await retry.json();
+        }
+        return null;
+      }
+
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting workspace:', error);
+      return null;
+    }
+  };
+
+  const updateWorkspace = async (workspaceData) => {
+    try {
+      let accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) throw new Error('No autenticado');
+
+      let response = await fetch(`${API_BASE_URL}/workspace/`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workspaceData),
+      });
+
+      if (response.status === 401) {
+        accessToken = await refreshAccessToken();
+        if (!accessToken) throw new Error('Sesión expirada');
+        response = await fetch(`${API_BASE_URL}/workspace/`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(workspaceData),
+        });
+      }
+
+      if (response.ok) {
+        return await response.json();
+      }
+      throw new Error('Error al actualizar el espacio de trabajo');
+    } catch (error) {
+      console.error('Error updating workspace:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -364,6 +432,8 @@ export const AuthProvider = ({ children }) => {
         updateProfile,
         changePassword,
         refreshAccessToken,
+        getWorkspace,
+        updateWorkspace,
       }}
     >
       {children}

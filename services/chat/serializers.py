@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import UserProfile, ChatSession, ChatMessage
+from .models import UserProfile, ChatSession, ChatMessage, Workspace
 
 User = get_user_model()
 
@@ -33,3 +33,10 @@ class ChatSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatSession
         fields = ['id', 'session_id', 'title', 'created_at', 'updated_at', 'messages']
+
+
+class WorkspaceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Workspace
+        fields = ['id', 'name', 'owner', 'description', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
