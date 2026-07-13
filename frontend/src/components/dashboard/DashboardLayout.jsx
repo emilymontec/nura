@@ -35,6 +35,12 @@ export default function DashboardLayout() {
   const handleNewAnalysis = useCallback(() => {
     navigate("/console/datasets");
   }, [navigate]);
+    setCurrentView(viewId);
+  }, []);
+
+  const handleNewAnalysis = useCallback(() => {
+    setCurrentView("datasets");
+  }, []);
 
   const label = findItemLabel(currentView);
   const sysPath = `root / ${label}`;
@@ -50,6 +56,8 @@ export default function DashboardLayout() {
       <main className="flex-1 bg-nura-black z-10 flex flex-col overflow-hidden relative">
         <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
         <Outlet />
+        <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
+        <MainViewport currentView={currentView} />
         <DashboardFooter />
       </main>
 

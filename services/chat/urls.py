@@ -21,4 +21,12 @@ urlpatterns = [
     path('profile', views.user_profile, name='user_profile-no-slash'),
     path('workspace/', views.user_workspace, name='user_workspace'),
     path('workspace', views.user_workspace, name='user_workspace-no-slash'),
+    
+    # Dataset endpoints
+    path('datasets/', views.dataset_list_create, name='dataset_list_create'),
+    path('datasets', views.dataset_list_create, name='dataset_list_create-no-slash'),
+    path('datasets/<int:pk>/', views.dataset_detail, name='dataset_detail'),
+    path('datasets/<int:pk>', views.dataset_detail, name='dataset_detail-no-slash'),
+    path('datasets/<int:pk>/activate/', views.dataset_activate, name='dataset_activate'),
+    path('datasets/<int:pk>/activate', views.dataset_activate, name='dataset_activate-no-slash'),
 ]

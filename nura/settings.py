@@ -171,9 +171,29 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = []
+
+# Media files (uploads) - Supabase Storage
+# Supabase Storage is S3-compatible
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# Supabase S3 Configuration
+S3_ACCESS_KEY_ID = os.getenv('SUPABASE_ACCESS_KEY_ID')
+S3_SECRET_ACCESS_KEY = os.getenv('SUPABASE_SECRET_ACCESS_KEY')
+S3_STORAGE_BUCKET_NAME = os.getenv('SUPABASE_BUCKET_NAME', 'nura-datasets')
+S3_ENDPOINT_URL = f"https://{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/s3"
+S3_REGION_NAME = 'us-east-1'  # Default for Supabase
+S3_FILE_OVERWRITE = False
+S3_DEFAULT_ACL = 'public-read'  # Or 'private' depending on your needs
+S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
+# Optional: If you want to use custom domain
+# AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/object/public/{S3_STORAGE_BUCKET_NAME}"
+
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',

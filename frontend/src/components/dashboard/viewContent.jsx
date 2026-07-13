@@ -4,7 +4,6 @@ import MetricCard from "./MetricCard";
 import {
   LayoutDashboard,
   Database,
-  Brain,
   MessageSquareText,
   FileText,
   User,
@@ -230,69 +229,254 @@ export const VIEW_CONTENT = {
 
   datasets: () => {
     const { refreshAccessToken } = useAuth();
-    const [uploaded, setUploaded] = useState(null);
-    const [context, setContext] = useState(null);
+    const [datasets, setDatasets] = useState([]);
+    const [search, setSearch] = useState('');
+    const [filterType, setFilterType] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-    const handleUpload = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      setUploaded(file.name);
+    // Cargar datasets
+    const fetchDatasets = async () => {
       setLoading(true);
-      
       const API_BASE = import.meta.env.VITE_API_URL || '';
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('session_id', 'default');
-      
       try {
         const headers = await getAuthHeaders(refreshAccessToken);
-        const response = await fetch(`${API_BASE}/api/analyze`, {
-          method: 'POST',
-          headers,
-          body: formData
-        });
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (filterType) params.append('type', filterType);
+        if (filterStatus) params.append('status', filterStatus);
+        
+        const response = await fetch(`${API_BASE}/api/datasets?${params}`, { headers });
         const data = await response.json();
-        setContext(data);
+        setDatasets(data);
       } catch (error) {
-        console.error('Error uploading:', error);
+        console.error('Error fetching datasets:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
+    useEffect(() => {
+      fetchDatasets();
+    }, [search, filterType, filterStatus, refreshAccessToken]);
+
+    // Subir dataset
+    const handleUpload = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const headers = await getAuthHeaders(refreshAccessToken);
+        const response = await fetch(`${API_BASE}/api/datasets`, {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+        if (response.ok) {
+          fetchDatasets();
+        }
+      } catch (error) {
+        console.error('Error uploading:', error);
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    // Eliminar dataset
+    const handleDelete = async (id) => {
+      if (!window.confirm('¿Estás seguro de eliminar este dataset?')) return;
+      
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      try {
+        const headers = await getAuthHeaders(refreshAccessToken);
+        await fetch(`${API_BASE}/api/datasets/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+        fetchDatasets();
+      } catch (error) {
+        console.error('Error deleting:', error);
+      }
+    };
+
+    // Renombrar dataset
+    const handleRename = async (id, newName) => {
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      try {
+        const headers = await getAuthHeaders(refreshAccessToken);
+        headers['Content-Type'] = 'application/json';
+        await fetch(`${API_BASE}/api/datasets/${id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ file_name: newName })
+        });
+        fetchDatasets();
+      } catch (error) {
+        console.error('Error renaming:', error);
+      }
+    };
+
+    // Activar dataset para chat
+    const handleActivate = async (id) => {
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      try {
+        const headers = await getAuthHeaders(refreshAccessToken);
+        headers['Content-Type'] = 'application/json';
+        await fetch(`${API_BASE}/api/datasets/${id}/activate`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ session_id: 'default' })
+        });
+        alert('Dataset activado para chat!');
+      } catch (error) {
+        console.error('Error activating:', error);
+      }
+    };
+
+    const formatFileSize = (bytes) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     return (
       <div className="space-y-4 font-mono text-xs h-full flex flex-col">
-        <h2 className="text-lg text-white font-light">// gestion_datos</h2>
-        {!uploaded ? (
-          <UploadCSV onUpload={handleUpload} />
-        ) : (
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => { setUploaded(null); setContext(null); }}
-                className="text-[10px] text-white/40 hover:text-white transition-colors"
-              >
-                &larr; cargar otro archivo
-              </button>
-              <span className="text-[10px] text-white/20">/</span>
-              <span className="text-nura-electric text-[11px]">{uploaded}</span>
-            </div>
-            {loading ? (
-              <div className="text-white/60">Procesando {uploaded}...</div>
-            ) : (
-              <DataPreview filename={uploaded} context={context} />
-            )}
-            <div className="flex gap-3">
-              <button className="px-4 py-2 rounded bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all text-[11px]" disabled={loading}>
-                validar_dataset()
-              </button>
-              <button className="px-4 py-2 rounded bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all text-[11px]" disabled={loading}>
-                limpiar_datos()
-              </button>
-            </div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg text-white font-light">// gestion_datos</h2>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="px-3 py-1.5 rounded bg-white/5 border border-white/10 text-white/80 text-xs focus:outline-none focus:border-nura-electric/40"
+            />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="px-3 py-1.5 rounded bg-white/5 border border-white/10 text-white/80 text-xs focus:outline-none focus:border-nura-electric/40"
+            >
+              <option value="">Todos los tipos</option>
+              <option value="csv">CSV</option>
+              <option value="xlsx">Excel</option>
+              <option value="json">JSON</option>
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-1.5 rounded bg-white/5 border border-white/10 text-white/80 text-xs focus:outline-none focus:border-nura-electric/40"
+            >
+              <option value="">Todos los estados</option>
+              <option value="valid">Válido</option>
+              <option value="invalid">Inválido</option>
+              <option value="pending">Pendiente</option>
+            </select>
           </div>
-        )}
+        </div>
+
+        {/* Upload area */}
+        <div
+          className="border-2 border-dashed border-nura-border rounded-xl bg-nura-gray/30 flex flex-col items-center justify-center gap-3 p-6 group hover:border-nura-electric/40 transition-colors cursor-pointer"
+          onClick={() => document.getElementById('dataset-upload').click()}
+        >
+          <input
+            id="dataset-upload"
+            type="file"
+            accept=".csv,.xlsx,.json"
+            className="hidden"
+            onChange={handleUpload}
+            disabled={uploading}
+          />
+          <Upload className="w-6 h-6 text-white/20 group-hover:text-nura-electric transition-colors" />
+          <p className="text-white/40 text-center text-xs">
+            {uploading ? 'Subiendo...' : 'Arrastra tus archivos aquí o haz clic para examinar'}
+          </p>
+          <p className="text-white/20 text-[10px]">Formatos: CSV, XLSX, JSON (máx. 50MB)</p>
+        </div>
+
+        {/* Datasets list */}
+        <div className="flex-1 overflow-y-auto space-y-3 pr-2 min-h-0 scrollbar-thin">
+          {loading ? (
+            <div className="text-white/60">Cargando datasets...</div>
+          ) : datasets.length === 0 ? (
+            <div className="text-white/40 text-center py-8">No hay datasets aún. Sube tu primer archivo!</div>
+          ) : (
+            datasets.map((dataset) => (
+              <div
+                key={dataset.id}
+                className="pure-glass rounded-xl p-4 flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <FileSpreadsheet className="w-8 h-8 text-nura-electric/60" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={dataset.file_name}
+                        onChange={(e) => handleRename(dataset.id, e.target.value)}
+                        className="text-white font-medium text-sm bg-transparent border-none focus:outline-none focus:border-b focus:border-nura-electric/40"
+                      />
+                      <span className={`text-[10px] px-2 py-0.5 rounded ${
+                        dataset.status === 'valid' ? 'bg-emerald-500/10 text-emerald-400' :
+                        dataset.status === 'invalid' ? 'bg-red-500/10 text-red-400' :
+                        'bg-yellow-500/10 text-yellow-400'
+                      }`}>
+                        {dataset.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-white/40 text-[10px] mt-1">
+                      <span>{dataset.file_type.toUpperCase()}</span>
+                      <span>{formatFileSize(dataset.file_size)}</span>
+                      <span>{new Date(dataset.uploaded_at).toLocaleDateString()}</span>
+                      {dataset.analysis_context?.summary && (
+                        <span>{dataset.analysis_context.summary.rows} filas, {dataset.analysis_context.summary.columns} columnas</span>
+                      )}
+                    </div>
+                    {dataset.validation_errors.length > 0 && (
+                      <div className="text-red-400 text-[10px] mt-1">
+                        {dataset.validation_errors.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {dataset.file_url && (
+                    <a
+                      href={dataset.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-[11px]"
+                    >
+                      Descargar
+                    </a>
+                  )}
+                  {dataset.status === 'valid' && (
+                    <button
+                      onClick={() => handleActivate(dataset.id)}
+                      className="px-3 py-1.5 rounded bg-nura-electric/20 border border-nura-electric/30 text-nura-electric hover:bg-nura-electric/30 transition-all text-[11px]"
+                    >
+                      Usar en Chat
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(dataset.id)}
+                    className="px-3 py-1.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-[11px]"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     );
   },
@@ -726,7 +910,6 @@ export const VIEW_CONTENT = {
 export const ICON_MAP = {
   LayoutDashboard,
   Database,
-  Brain,
   MessageSquareText,
   FileText,
   User,

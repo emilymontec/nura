@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import UserProfile, ChatSession, ChatMessage, Workspace
+from .models import UserProfile, ChatSession, ChatMessage, Workspace, Dataset
 
 User = get_user_model()
 
@@ -40,3 +40,28 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         model = Workspace
         fields = ['id', 'name', 'owner', 'description', 'created_at', 'updated_at']
         read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
+
+
+class DatasetSerializer(serializers.ModelSerializer):
+    uploaded_by = UserSerializer(read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Dataset
+        fields = [
+            'id', 'file', 'file_url', 'original_name', 'file_name', 
+            'file_size', 'file_type', 'file_hash', 'uploaded_at', 
+            'updated_at', 'uploaded_by', 'workspace', 'status', 
+            'validation_errors', 'analysis_context'
+        ]
+        read_only_fields = [
+            'id', 'original_name', 'file_name', 'file_size', 
+            'file_type', 'file_hash', 'uploaded_at', 'updated_at', 
+            'uploaded_by', 'workspace', 'status', 'validation_errors', 
+            'analysis_context'
+        ]
+
+    def get_file_url(self, obj):
+        if obj.file:
+            return obj.file.url
+        return None
