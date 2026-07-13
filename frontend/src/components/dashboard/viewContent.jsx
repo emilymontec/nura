@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import MetricCard from "./MetricCard";
 import {
   LayoutDashboard,
   Database,
@@ -79,23 +80,7 @@ export const NAV_SECTIONS = [
   },
 ];
 
-function MetricCard({ label, value, unit, accent = "electric", barWidth }) {
-  const color = accent === "purple" ? "bg-nura-purple" : "bg-nura-electric";
-  return (
-    <div className="pure-glass rounded p-4 font-mono">
-      <span className="text-[9px] text-white/30 block tracking-widest">{label}</span>
-      <div className="text-xl font-light text-white mt-1 flex items-baseline gap-1 flex-wrap">
-        {value}
-        {unit && <span className="text-xs text-white/30 font-normal">{unit}</span>}
-      </div>
-      {barWidth && (
-        <div className="w-full bg-white/5 h-0.5 mt-3 overflow-hidden">
-          <div className={`${color} h-full`} style={{ width: barWidth }} />
-        </div>
-      )}
-    </div>
-  );
-}
+
 
 function UploadCSV({ onUpload }) {
   return (
@@ -224,9 +209,9 @@ export const VIEW_CONTENT = {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <MetricCard label="// HEALTH_SCORE" value={healthScore.toFixed(0)} unit="%" barWidth={`${healthScore}%`} />
-              <MetricCard label="// REGISTROS" value={rows} unit="filas" barWidth="60%" />
-              <MetricCard label="// COLUMNAS" value={cols} unit="columnas" />
+              <MetricCard label="HEALTH_SCORE" value={healthScore.toFixed(0)} unit="%" barWidth={`${healthScore}%`} />
+              <MetricCard label="REGISTROS" value={rows} unit="filas" barColor="bg-nura-electric" barWidth="60%" />
+              <MetricCard label="COLUMNAS" value={cols} unit="columnas" />
             </div>
             {context && (
               <div className="pure-glass rounded-xl p-5">

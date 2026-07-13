@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Home from './components/pages/Home';
 import DashboardLayout from './components/dashboard/DashboardLayout';
@@ -15,6 +15,7 @@ import Contact from './components/pages/Contact';
 import About from './components/pages/About';
 import Terms from './components/pages/Terms';
 import Privacy from './components/pages/Privacy';
+import MainViewport from './components/dashboard/MainViewport';
 import './styles/main.css';
 
 function App() {
@@ -33,7 +34,22 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout />
             </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<MainViewport currentView="dashboard" />} />
+            <Route path="datasets" element={<MainViewport currentView="datasets" />} />
+            <Route path="motor-analitico" element={<MainViewport currentView="motor-analitico" />} />
+            <Route path="chat-inteligente" element={<MainViewport currentView="chat-inteligente" />} />
+            <Route path="reportes-ia" element={<MainViewport currentView="reportes-ia" />} />
+            <Route path="mg-perfil" element={<MainViewport currentView="mg-perfil" />} />
+            <Route path="mg-configuracion" element={<MainViewport currentView="mg-configuracion" />} />
+            <Route path="mg-suscripcion" element={<MainViewport currentView="mg-suscripcion" />} />
+            <Route path="mg-integraciones" element={<MainViewport currentView="mg-integraciones" />} />
+            <Route path="ad-usuarios" element={<MainViewport currentView="ad-usuarios" />} />
+            <Route path="ad-empresas" element={<MainViewport currentView="ad-empresas" />} />
+            <Route path="ad-licencias" element={<MainViewport currentView="ad-licencias" />} />
+            <Route path="ad-monitoreo" element={<MainViewport currentView="ad-monitoreo" />} />
+          </Route>
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/register" element={<Register />} />
           <Route path="/auth/password-reset" element={<PasswordReset />} />

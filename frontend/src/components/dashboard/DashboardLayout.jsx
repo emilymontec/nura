@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import SidebarNav from "./SidebarNav";
 import HeaderBar from "./HeaderBar";
-import MainViewport from "./MainViewport";
 import TelemetryPanel from "./TelemetryPanel";
 import DashboardFooter from "./DashboardFooter";
 import { NAV_SECTIONS } from "./viewContent";
@@ -15,16 +15,26 @@ function findItemLabel(viewId) {
   return viewId;
 }
 
+function getViewIdFromLocation(location) {
+  const pathParts = location.pathname.split("/").filter(Boolean);
+  if (pathParts.length >= 2 && pathParts[0] === "console") {
+    return pathParts[1];
+  }
+  return "dashboard";
+}
+
 export default function DashboardLayout() {
-  const [currentView, setCurrentView] = useState("dashboard");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentView = getViewIdFromLocation(location);
 
   const handleNavigate = useCallback((viewId) => {
-    setCurrentView(viewId);
-  }, []);
+    navigate(`/console/${viewId}`);
+  }, [navigate]);
 
   const handleNewAnalysis = useCallback(() => {
-    setCurrentView("datasets");
-  }, []);
+    navigate("/console/datasets");
+  }, [navigate]);
 
   const label = findItemLabel(currentView);
   const sysPath = `root / ${label}`;
@@ -39,7 +49,7 @@ export default function DashboardLayout() {
 
       <main className="flex-1 bg-nura-black z-10 flex flex-col overflow-hidden relative">
         <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
-        <MainViewport currentView={currentView} />
+        <Outlet />
         <DashboardFooter />
       </main>
 

@@ -213,25 +213,22 @@ def list_sessions(request):
 @csrf_exempt
 def get_session_history(request, session_id):
     if request.method == "GET":
-        try:
-            session = ChatSession.objects.get(session_id=session_id)
-            messages = session.messages.filter(role__in=['user', 'assistant']).order_by('created_at')
-            message_data = [
-                {
-                    "role": m.role,
-                    "content": m.content,
-                    "created_at": m.created_at.isoformat(),
-                }
-                for m in messages
-            ]
-            return JsonResponse({
-                "session_id": session.session_id,
-                "title": session.title,
-                "dataset_context": session.dataset_context,
-                "messages": message_data,
-            })
-        except ChatSession.DoesNotExist:
-            return JsonResponse({"error": "Sesión no encontrada"}, status=404)
+        session, _ = ChatSession.objects.get_or_create(session_id=session_id)
+        messages = session.messages.filter(role__in=['user', 'assistant']).order_by('created_at')
+        message_data = [
+            {
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ]
+        return JsonResponse({
+            "session_id": session.session_id,
+            "title": session.title,
+            "dataset_context": session.dataset_context,
+            "messages": message_data,
+        })
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
