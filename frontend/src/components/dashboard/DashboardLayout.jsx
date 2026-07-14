@@ -7,9 +7,12 @@ import DashboardFooter from "./DashboardFooter";
 import { NAV_SECTIONS } from "./viewContent";
 
 function findItemLabel(viewId) {
+  if (!NAV_SECTIONS || !Array.isArray(NAV_SECTIONS)) return viewId;
   for (const section of NAV_SECTIONS) {
-    for (const item of section.items) {
-      if (item.id === viewId) return item.label;
+    if (section.items && Array.isArray(section.items)) {
+      for (const item of section.items) {
+        if (item.id === viewId) return item.label;
+      }
     }
   }
   return viewId;
@@ -35,14 +38,8 @@ export default function DashboardLayout() {
   const handleNewAnalysis = useCallback(() => {
     navigate("/console/datasets");
   }, [navigate]);
-    setCurrentView(viewId);
-  }, []);
 
-  const handleNewAnalysis = useCallback(() => {
-    setCurrentView("datasets");
-  }, []);
-
-  const label = findItemLabel(currentView);
+  const label = findItemLabel(currentView) || currentView || "dashboard";
   const sysPath = `root / ${label}`;
 
   return (
@@ -56,8 +53,6 @@ export default function DashboardLayout() {
       <main className="flex-1 bg-nura-black z-10 flex flex-col overflow-hidden relative">
         <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
         <Outlet />
-        <HeaderBar currentPath={sysPath} onNewAnalysis={handleNewAnalysis} />
-        <MainViewport currentView={currentView} />
         <DashboardFooter />
       </main>
 

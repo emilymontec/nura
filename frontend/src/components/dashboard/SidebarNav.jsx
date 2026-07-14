@@ -24,7 +24,7 @@ export default function SidebarNav({ currentView, onNavigate }) {
     }
     if (firstName) return firstName[0].toUpperCase();
     if (lastName) return lastName[0].toUpperCase();
-    return username[0].toUpperCase() || "OP";
+    return (username && username[0] ? username[0].toUpperCase() : "OP");
   };
 
   // Get user display name
