@@ -22,7 +22,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset, FileCategory
 from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer, FileCategorySerializer
 from analytics.analyzer import (
-    load_csv, dataset_summary, column_info, evaluate_business,
+    load_csv, prepare_dataframe, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
     get_business_context, detect_critical_variables, detect_anomalies,
     check_fraud_signals, simple_forecast, get_chart_data, get_preview, get_kpis
@@ -170,6 +170,7 @@ def validate_file(file_obj):
 
 def get_analytics_context(file_obj, filename):
     df = load_csv(file_obj)
+    df, cleaning_info = prepare_dataframe(df)
     summary = dataset_summary(df)
     cols = column_info(df)
     health = evaluate_business(summary)
@@ -194,6 +195,7 @@ def get_analytics_context(file_obj, filename):
     kpis = get_kpis(df)
     return {
         "file_name": filename,
+        "cleaning": cleaning_info,
         "summary": summary,
         "columns": cols,
         "health": health,

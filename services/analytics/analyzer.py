@@ -1,4 +1,5 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
+import re
 import pandas as pd
 import numpy as np
 from .utils import detect_file_type
@@ -6,6 +7,25 @@ from .scoring import evaluate_business
 from .trends import analyze_numeric_trends
 from .anomalies import detect_anomalies, check_fraud_signals
 from .forecasting import simple_forecast
+from .cleaning import clean_dataframe, detect_headers, detect_language
+
+
+def _is_valid_header_row(values):
+    if not values or len(values) < 2:
+        return False
+    str_vals = [str(v).strip() for v in values if pd.notna(v)]
+    if not str_vals:
+        return False
+    all_numeric = all(re.match(r'^-?\d+(\.\d+)?$', v) for v in str_vals)
+    if all_numeric:
+        return False
+    empty_count = sum(1 for v in str_vals if v == '' or v.startswith('Unnamed'))
+    if empty_count / max(len(str_vals), 1) > 0.5:
+        return False
+    unique_ratio = len(set(str_vals)) / max(len(str_vals), 1)
+    if unique_ratio < 0.5 and len(str_vals) > 3:
+        return False
+    return True
 
 
 def load_csv(file_obj) -> pd.DataFrame:
@@ -14,6 +34,8 @@ def load_csv(file_obj) -> pd.DataFrame:
     def _read_csv_fallback() -> pd.DataFrame:
         encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252", "utf-16"]
         separators = [",", ";", "\t", "|"]
+        best_df = None
+        best_score = -1
         last_err: Exception | None = None
         for enc in encodings:
             for sep in separators:
@@ -25,9 +47,16 @@ def load_csv(file_obj) -> pd.DataFrame:
                     df = pd.read_csv(file_obj, encoding=enc, sep=sep)
                     if df is None or df.empty or len(df.columns) == 0:
                         raise ValueError("No columns parsed from CSV.")
-                    return df
+                    score = len(df.columns) * 10 + len(df)
+                    if _is_valid_header_row(df.columns):
+                        score += 500
+                    if score > best_score:
+                        best_score = score
+                        best_df = df
                 except Exception as e:
                     last_err = e
+        if best_df is not None:
+            return best_df
         raise ValueError(f"CSV no compatible o vacío. Error original: {last_err}") from last_err
 
     if file_type in [".xlsx", ".xls"]:
@@ -41,10 +70,28 @@ def load_csv(file_obj) -> pd.DataFrame:
             raise ValueError(f"No se pudo leer el archivo Excel: {e}") from e
         if df is None or df.empty or len(df.columns) == 0:
             raise ValueError("El Excel está vacío o no contiene columnas válidas.")
+        df, headers_fixed = detect_headers(df)
         return df
-    if file_type == ".csv":
-        return _read_csv_fallback()
-    return _read_csv_fallback()
+    df = _read_csv_fallback()
+    df, headers_fixed = detect_headers(df)
+    return df
+
+
+def prepare_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    language = detect_language(df.columns.tolist())
+    original_shape = df.shape
+    df, cleaning_changes, date_cols = clean_dataframe(df)
+    final_shape = df.shape
+    return df, {
+        "original_rows": original_shape[0],
+        "original_columns": original_shape[1],
+        "final_rows": final_shape[0],
+        "final_columns": final_shape[1],
+        "language": language,
+        "date_columns": date_cols,
+        "changes": cleaning_changes,
+        "total_changes": len(cleaning_changes),
+    }
 
 
 def _infer_semantic_type(col_name: str, dtype_str: str) -> str:
