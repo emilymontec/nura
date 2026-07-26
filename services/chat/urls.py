@@ -69,6 +69,10 @@ urlpatterns = [
     path('datasets/<int:pk>/columns', views.dataset_columns, name='dataset_columns-no-slash'),
     path('datasets/<int:pk>/statistics/', views.dataset_statistics, name='dataset_statistics'),
     path('datasets/<int:pk>/statistics', views.dataset_statistics, name='dataset_statistics-no-slash'),
+    path('datasets/<int:pk>/search/', views.dataset_search, name='dataset_search'),
+    path('datasets/<int:pk>/search', views.dataset_search, name='dataset_search-no-slash'),
+    path('datasets/<int:pk>/filter/', views.dataset_filter, name='dataset_filter'),
+    path('datasets/<int:pk>/filter', views.dataset_filter, name='dataset_filter-no-slash'),
 
     # Tag endpoints
     path('datasets/<int:pk>/tags/add/', views.dataset_add_tags, name='dataset_add_tags'),

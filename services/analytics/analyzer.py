@@ -290,3 +290,51 @@ def get_kpis(df: pd.DataFrame) -> List[Dict[str, Any]]:
             "type": "number"
         })
     return kpis[:4]
+
+
+def search_records(df: pd.DataFrame, query: str, column: str = None, max_results: int = 10) -> List[Dict[str, Any]]:
+    query_lower = query.lower()
+    if column and column in df.columns:
+        mask = df[column].astype(str).str.lower().str.contains(query_lower, na=False)
+        results = df[mask].head(max_results)
+    else:
+        mask = df.apply(lambda row: row.astype(str).str.lower().str.contains(query_lower, na=False).any(), axis=1)
+        results = df[mask].head(max_results)
+    return {
+        "total_matches": int(mask.sum()),
+        "showing": min(int(mask.sum()), max_results),
+        "records": results.replace({np.nan: None}).to_dict(orient="records")
+    }
+
+
+def filter_records(df: pd.DataFrame, filters: List[Dict[str, Any]], max_results: int = 20) -> List[Dict[str, Any]]:
+    mask = pd.Series(True, index=df.index)
+    for f in filters:
+        col = f.get("column", "")
+        op = f.get("operator", "eq")
+        val = f.get("value", "")
+        if col not in df.columns:
+            continue
+        try:
+            if op == "eq":
+                mask &= df[col].astype(str).str.lower() == str(val).lower()
+            elif op == "gt":
+                mask &= pd.to_numeric(df[col], errors='coerce') > float(val)
+            elif op == "lt":
+                mask &= pd.to_numeric(df[col], errors='coerce') < float(val)
+            elif op == "gte":
+                mask &= pd.to_numeric(df[col], errors='coerce') >= float(val)
+            elif op == "lte":
+                mask &= pd.to_numeric(df[col], errors='coerce') <= float(val)
+            elif op == "contains":
+                mask &= df[col].astype(str).str.lower().str.contains(str(val).lower(), na=False)
+            elif op == "ne":
+                mask &= df[col].astype(str).str.lower() != str(val).lower()
+        except Exception:
+            continue
+    results = df[mask].head(max_results)
+    return {
+        "total_matches": int(mask.sum()),
+        "showing": min(int(mask.sum()), max_results),
+        "records": results.replace({np.nan: None}).to_dict(orient="records")
+    }

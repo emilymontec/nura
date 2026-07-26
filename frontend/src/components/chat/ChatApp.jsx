@@ -66,6 +66,33 @@ function ChatApp() {
     }
   };
 
+  const renameSession = async (id, newTitle) => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/api/sessions/${id}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ title: newTitle })
+      });
+      fetchSessions();
+    } catch (error) {
+      console.error('Error renaming session:', error);
+    }
+  };
+
+  const deleteSession = async (id) => {
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/api/sessions/${id}/delete`, { method: 'DELETE', headers });
+      if (id === sessionId) {
+        startNewSession();
+      }
+      fetchSessions();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  };
+
   const handleSendMessage = async (text) => {
     const userMsg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
@@ -162,6 +189,8 @@ function ChatApp() {
           datasetContext={datasetContext}
           onNewSession={startNewSession}
           onLoadSession={loadSession}
+          onRenameSession={renameSession}
+          onDeleteSession={deleteSession}
         />
 
         <main className="chat-main">

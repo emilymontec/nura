@@ -211,9 +211,12 @@ def route_intent(question: str, context: dict, history: str) -> str:
         return "chat"
 
 
-def chat_with_data(question: str, context: dict, history: str) -> str:
+def chat_with_data(question: str, context: dict, history: str, user_info: dict = None) -> str:
     try:
         short_context = _summarize_context(context)
+        if user_info:
+            user_block = f"\nUsuario: {user_info.get('name', 'Usuario')} ({user_info.get('email', '')})"
+            short_context += user_block
         has_dataset = bool(context and context.get("file_name"))
         industry = context.get("industry", "General / Negocios")
         if not has_dataset or len(question.strip()) < 5:

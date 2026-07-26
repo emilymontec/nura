@@ -25,7 +25,8 @@ from analytics.analyzer import (
     load_csv, prepare_dataframe, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
     get_business_context, detect_critical_variables, detect_anomalies,
-    check_fraud_signals, simple_forecast, get_chart_data, get_preview, get_kpis
+    check_fraud_signals, simple_forecast, get_chart_data, get_preview, get_kpis,
+    search_records, filter_records
 )
 from analytics.utils import make_json_safe
 from ai.llm import generate_ai_report, chat_with_data
@@ -71,6 +72,27 @@ class MemoryManager:
         if role == "user" and (not session.title or session.title in ["Nueva sesión", "Nuevo chat"]):
             session.title = content[:40] if len(content) > 40 else content
             session.save(update_fields=["title", "updated_at"])
+        if role == "user":
+            self._maybe_update_rolling_summary(session)
+
+    def _maybe_update_rolling_summary(self, session):
+        msg_count = session.messages.count()
+        if msg_count < self.SUMMARY_MESSAGE_LIMIT:
+            return
+        messages = list(session.messages.order_by('created_at').values_list('role', 'content'))
+        recent = messages[-self.SUMMARY_MESSAGE_LIMIT:]
+        lines = []
+        for role, content in recent:
+            prefix = "Usuario" if role == "user" else "Asistente"
+            lines.append(f"{prefix}: {content[:300]}")
+        batch = "\n".join(lines)
+        existing = session.rolling_summary or ""
+        if existing:
+            session.rolling_summary = existing[-self.MAX_SUMMARY_CHARS // 2:] + "\n---\n" + batch
+        else:
+            session.rolling_summary = batch
+        session.rolling_summary = session.rolling_summary[-self.MAX_SUMMARY_CHARS:]
+        session.save(update_fields=["rolling_summary"])
 
     def store_dataset_context(self, session_id: str, context: dict):
         session = self._get_session(session_id)
@@ -93,11 +115,15 @@ class MemoryManager:
 
     def get_history(self, session_id: str, question: str = "") -> str:
         session = self._get_session(session_id)
+        rolling = session.rolling_summary or ""
         messages = list(session.messages.all()[:20])
         history_parts = []
         for msg in messages:
             history_parts.append(f"{msg.role.upper()}: {msg.content}")
-        return "\n".join(history_parts)
+        raw = "\n".join(history_parts)
+        if rolling:
+            return f"[Resumen de conversación previa]:\n{rolling}\n\n[Últimos mensajes]:\n{raw}"
+        return raw
 
 
 memory = MemoryManager()
@@ -266,7 +292,25 @@ def chat_endpoint(request):
             memory.add_message(session_id, "user", message)
             history = memory.get_history(session_id, message)
             context = memory.get_dataset_context(session_id)
-            response_text = chat_with_data(message, context, history)
+            user_info = None
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Bearer '):
+                try:
+                    import jwt as pyjwt
+                    token = auth_header.split(' ')[1]
+                    payload = pyjwt.decode(token, options={"verify_signature": False})
+                    user_id = payload.get('user_id')
+                    if user_id:
+                        from django.contrib.auth import get_user_model
+                        User = get_user_model()
+                        user = User.objects.get(id=user_id)
+                        user_info = {
+                            "name": getattr(user, 'first_name', '') or user.email.split('@')[0],
+                            "email": user.email,
+                        }
+                except Exception:
+                    pass
+            response_text = chat_with_data(message, context, history, user_info=user_info)
             memory.add_message(session_id, "assistant", response_text)
             return JsonResponse({"response": response_text})
         except Exception as e:
@@ -1116,3 +1160,64 @@ def dataset_statistics(request, pk):
         "anomalies": ctx.get("anomalies", {}),
         "trends": ctx.get("trends", {}),
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_search(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    q = request.query_params.get('q', '')
+    col = request.query_params.get('column', None)
+    max_r = int(request.query_params.get('limit', 10))
+
+    if not q:
+        return Response({"error": "Se requiere un parámetro 'q'"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        dataset.file.seek(0)
+        if dataset.file_type == 'csv':
+            df = pd.read_csv(dataset.file)
+        elif dataset.file_type == 'xlsx':
+            df = pd.read_excel(dataset.file)
+        else:
+            return Response({"error": "Tipo de archivo no soportado"}, status=status.HTTP_400_BAD_REQUEST)
+
+        results = search_records(df, q, col, max_r)
+        return Response(results)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_filter(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    filters = request.data.get('filters', [])
+    max_r = int(request.data.get('limit', 20))
+
+    if not filters:
+        return Response({"error": "Se requieren filtros"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        dataset.file.seek(0)
+        if dataset.file_type == 'csv':
+            df = pd.read_csv(dataset.file)
+        elif dataset.file_type == 'xlsx':
+            df = pd.read_excel(dataset.file)
+        else:
+            return Response({"error": "Tipo de archivo no soportado"}, status=status.HTTP_400_BAD_REQUEST)
+
+        results = filter_records(df, filters, max_r)
+        return Response(results)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
