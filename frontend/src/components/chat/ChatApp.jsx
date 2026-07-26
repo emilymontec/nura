@@ -110,13 +110,20 @@ function ChatApp() {
       });
       const data = await response.json();
 
+      if (!response.ok) {
+        const errorMsg = data.error || data.detail || `Error ${response.status}`;
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error al analizar el archivo: ${errorMsg}` }]);
+        return;
+      }
+
       setDatasetContext(data);
-      const aiMsg = { role: 'assistant', content: data.response };
+      const aiMsg = { role: 'assistant', content: data.response || 'Archivo procesado.' };
       setMessages([aiMsg]);
       setShowAnalytics(true);
       fetchSessions();
     } catch (error) {
       console.error('Error analyzing file:', error);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error de red al analizar el archivo. Verifica tu conexión.' }]);
     } finally {
       setLoading(false);
     }

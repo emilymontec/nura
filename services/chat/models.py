@@ -26,13 +26,26 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    # Fields from existing database schema
     plan = models.CharField(max_length=100, default="free")
     daily_messages = models.IntegerField(default=0)
     last_message_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.email} - Profile"
+
+
+class FileCategory(models.Model):
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#6366f1')
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='file_categories')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ['name', 'workspace']
+
+    def __str__(self):
+        return self.name
 
 
 class Dataset(models.Model):
@@ -43,28 +56,28 @@ class Dataset(models.Model):
         ('processing', 'Procesando'),
     ]
 
-    # File storage
     file = models.FileField(upload_to='datasets/%Y/%m/%d/')
-    
-    # Metadata
+
     original_name = models.CharField(max_length=255)
     file_name = models.CharField(max_length=255)
-    file_size = models.BigIntegerField()  # in bytes
-    file_type = models.CharField(max_length=50)  # csv, xlsx, json
-    file_hash = models.CharField(max_length=64, unique=True)  # SHA-256
-    
-    # Timestamps & author
+    file_size = models.BigIntegerField()
+    file_type = models.CharField(max_length=50)
+    file_hash = models.CharField(max_length=64, unique=True)
+
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='datasets')
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='datasets')
-    
-    # Status & validation
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     validation_errors = models.JSONField(default=list, blank=True)
-    
-    # Analysis context
+
     analysis_context = models.JSONField(default=dict, blank=True)
+
+    description = models.TextField(blank=True, default='')
+    tags = models.JSONField(default=list, blank=True)
+    category = models.ForeignKey(FileCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='datasets')
+    starred = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-uploaded_at']
@@ -73,15 +86,34 @@ class Dataset(models.Model):
         return f"{self.file_name} - {self.uploaded_by.email}"
 
     def save(self, *args, **kwargs):
-        # Calculate file hash before saving
         if self.file and not self.file_hash:
             self.file_hash = self._calculate_file_hash()
+        if self.file:
+            try:
+                self.file.seek(0)
+            except (AttributeError, OSError):
+                pass
         super().save(*args, **kwargs)
 
     def _calculate_file_hash(self):
         sha256_hash = hashlib.sha256()
         for chunk in self.file.chunks():
             sha256_hash.update(chunk)
+        try:
+            self.file.seek(0)
+        except (AttributeError, OSError):
+            pass
+        return sha256_hash.hexdigest()
+
+    @staticmethod
+    def compute_file_hash_static(file_obj):
+        sha256_hash = hashlib.sha256()
+        for chunk in file_obj.chunks():
+            sha256_hash.update(chunk)
+        try:
+            file_obj.seek(0)
+        except (AttributeError, OSError):
+            pass
         return sha256_hash.hexdigest()
 
 

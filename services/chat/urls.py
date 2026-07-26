@@ -21,7 +21,7 @@ urlpatterns = [
     path('profile', views.user_profile, name='user_profile-no-slash'),
     path('workspace/', views.user_workspace, name='user_workspace'),
     path('workspace', views.user_workspace, name='user_workspace-no-slash'),
-    
+
     # Dataset endpoints
     path('datasets/', views.dataset_list_create, name='dataset_list_create'),
     path('datasets', views.dataset_list_create, name='dataset_list_create-no-slash'),
@@ -29,4 +29,22 @@ urlpatterns = [
     path('datasets/<int:pk>', views.dataset_detail, name='dataset_detail-no-slash'),
     path('datasets/<int:pk>/activate/', views.dataset_activate, name='dataset_activate'),
     path('datasets/<int:pk>/activate', views.dataset_activate, name='dataset_activate-no-slash'),
+
+    # File management endpoints
+    path('datasets/<int:pk>/rename/', views.dataset_rename, name='dataset_rename'),
+    path('datasets/<int:pk>/rename', views.dataset_rename, name='dataset_rename-no-slash'),
+    path('datasets/<int:pk>/move/', views.dataset_move, name='dataset_move'),
+    path('datasets/<int:pk>/move', views.dataset_move, name='dataset_move-no-slash'),
+    path('datasets/<int:pk>/star/', views.dataset_toggle_star, name='dataset_toggle_star'),
+    path('datasets/<int:pk>/star', views.dataset_toggle_star, name='dataset_toggle_star-no-slash'),
+    path('datasets/bulk-delete/', views.dataset_bulk_delete, name='dataset_bulk_delete'),
+    path('datasets/bulk-delete', views.dataset_bulk_delete, name='dataset_bulk_delete-no-slash'),
+    path('datasets/stats/', views.dataset_stats, name='dataset_stats'),
+    path('datasets/stats', views.dataset_stats, name='dataset_stats-no-slash'),
+
+    # Category endpoints
+    path('categories/', views.category_list_create, name='category_list_create'),
+    path('categories', views.category_list_create, name='category_list_create-no-slash'),
+    path('categories/<int:pk>/', views.category_detail, name='category_detail'),
+    path('categories/<int:pk>', views.category_detail, name='category_detail-no-slash'),
 ]

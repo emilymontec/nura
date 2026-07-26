@@ -194,6 +194,17 @@ S3_OBJECT_PARAMETERS = {
 STORAGES = {
     'default': {
         'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        'OPTIONS': {
+            'access_key': S3_ACCESS_KEY_ID,
+            'secret_key': S3_SECRET_ACCESS_KEY,
+            'bucket_name': S3_STORAGE_BUCKET_NAME,
+            'endpoint_url': S3_ENDPOINT_URL,
+            'region_name': S3_REGION_NAME,
+            'file_overwrite': S3_FILE_OVERWRITE,
+            'default_acl': S3_DEFAULT_ACL,
+            'object_parameters': S3_OBJECT_PARAMETERS,
+            'querystring_auth': False,
+        },
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',

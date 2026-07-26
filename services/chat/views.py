@@ -10,7 +10,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db import models, IntegrityError
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -18,8 +19,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset
-from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer
+from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset, FileCategory
+from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer, FileCategorySerializer
 from analytics.analyzer import (
     load_csv, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
@@ -224,6 +225,10 @@ def analyze_endpoint(request):
             suffix = file.name.lower().split('.')[-1]
             if suffix not in ['csv', 'xlsx', 'xls', 'pdf', 'docx', 'doc']:
                 return JsonResponse({"status": "rag_only", "file_name": file.name, "response": "Archivo cargado."})
+            if suffix in ['pdf', 'docx', 'doc']:
+                response_text = f"El archivo '{file.name}' fue cargado correctamente. El análisis detallado está disponible para archivos CSV y Excel. Para este tipo de archivo ({suffix.upper()}), por ahora solo se almacena."
+                memory.add_message(session_id, "assistant", response_text)
+                return JsonResponse({"status": "rag_only", "file_name": file.name, "response": response_text})
             file.seek(0)
             context = get_analytics_context(file, file.name)
             safe_context = make_json_safe(context)
@@ -243,7 +248,7 @@ def analyze_endpoint(request):
             err = f"Error al analizar el archivo: {str(e)}"
             print(f"[ERROR] CRASH EN ANALISIS: {err}")
             traceback.print_exc()
-            return JsonResponse({"error": err, "exception": type(e).__name__, "detail": repr(e)}, status=500)
+            return JsonResponse({"error": err, "exception": type(e).__name__, "detail": repr(e), "response": err}, status=500)
     return JsonResponse({"error": "Se requiere una petición POST"}, status=400)
 
 
@@ -379,26 +384,37 @@ def user_workspace(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def dataset_list_create(request):
-    """Listar datasets o subir uno nuevo"""
     workspace, _ = Workspace.objects.get_or_create(owner=request.user)
     
     if request.method == 'GET':
-        # Búsqueda y filtrado
         search = request.query_params.get('search', '')
         file_type = request.query_params.get('type', '')
         status_filter = request.query_params.get('status', '')
+        category_id = request.query_params.get('category', '')
+        starred = request.query_params.get('starred', '')
+        sort = request.query_params.get('sort', '-uploaded_at')
         
         datasets = Dataset.objects.filter(workspace=workspace)
         
         if search:
             datasets = datasets.filter(
                 Q(file_name__icontains=search) | 
-                Q(original_name__icontains=search)
+                Q(original_name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(tags__icontains=search)
             )
         if file_type:
             datasets = datasets.filter(file_type=file_type)
         if status_filter:
             datasets = datasets.filter(status=status_filter)
+        if category_id:
+            datasets = datasets.filter(category_id=category_id)
+        if starred == 'true':
+            datasets = datasets.filter(starred=True)
+
+        allowed_sorts = ['uploaded_at', '-uploaded_at', 'file_name', '-file_name', 'file_size', '-file_size']
+        if sort in allowed_sorts:
+            datasets = datasets.order_by(sort)
         
         serializer = DatasetSerializer(datasets, many=True)
         return Response(serializer.data)
@@ -414,6 +430,17 @@ def dataset_list_create(request):
         file.seek(0)
         
         # Crear dataset
+        file_hash = Dataset.compute_file_hash_static(file)
+        file.seek(0)
+
+        existing = Dataset.objects.filter(file_hash=file_hash, workspace=workspace).first()
+        if existing:
+            serializer = DatasetSerializer(existing)
+            return Response(
+                {"error": "Ya existe un archivo idéntico en tu workspace", "existing": serializer.data},
+                status=status.HTTP_409_CONFLICT
+            )
+
         dataset = Dataset(
             file=file,
             original_name=file.name,
@@ -425,7 +452,20 @@ def dataset_list_create(request):
             status='valid' if is_valid else 'invalid',
             validation_errors=errors
         )
-        dataset.save()
+        try:
+            dataset.save()
+        except IntegrityError:
+            serializer = DatasetSerializer(existing) if existing else None
+            return Response(
+                {"error": "Ya existe un archivo idéntico en tu workspace"},
+                status=status.HTTP_409_CONFLICT
+            )
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"error": f"Error al guardar el archivo: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # Si es válido, analizarlo
         if is_valid and file_type in ['csv', 'xlsx']:
@@ -479,7 +519,6 @@ def dataset_detail(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def dataset_activate(request, pk):
-    """Activar un dataset para una sesión de chat"""
     workspace, _ = Workspace.objects.get_or_create(owner=request.user)
     
     try:
@@ -490,9 +529,142 @@ def dataset_activate(request, pk):
     session_id = request.data.get('session_id', 'default')
     session, _ = ChatSession.objects.get_or_create(session_id=session_id, user=request.user, workspace=workspace)
     
-    # Activar dataset en la sesión
     session.dataset = dataset
     session.dataset_context = dataset.analysis_context
     session.save()
     
     return Response({"status": "ok", "message": "Dataset activado correctamente"})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_rename(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    new_name = request.data.get('file_name', '').strip()
+    if not new_name:
+        return Response({"error": "El nombre no puede estar vacío"}, status=status.HTTP_400_BAD_REQUEST)
+
+    dataset.file_name = new_name
+    dataset.save(update_fields=['file_name', 'updated_at'])
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_bulk_delete(request):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    ids = request.data.get('ids', [])
+    if not ids:
+        return Response({"error": "No se proporcionaron IDs"}, status=status.HTTP_400_BAD_REQUEST)
+
+    datasets = Dataset.objects.filter(pk__in=ids, workspace=workspace)
+    count = datasets.count()
+    for ds in datasets:
+        if ds.file:
+            ds.file.delete(save=False)
+    datasets.delete()
+    return Response({"status": "ok", "deleted": count})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_move(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    category_id = request.data.get('category_id')
+    if category_id:
+        try:
+            category = FileCategory.objects.get(pk=category_id, workspace=workspace)
+            dataset.category = category
+        except FileCategory.DoesNotExist:
+            return Response({"error": "Categoría no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        dataset.category = None
+
+    dataset.save(update_fields=['category', 'updated_at'])
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_toggle_star(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    dataset.starred = not dataset.starred
+    dataset.save(update_fields=['starred', 'updated_at'])
+    return Response({"starred": dataset.starred})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_stats(request):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    datasets = Dataset.objects.filter(workspace=workspace)
+
+    total = datasets.count()
+    by_type = {}
+    for ds in datasets.values('file_type').annotate(count=models.Count('id')):
+        by_type[ds['file_type']] = ds['count']
+
+    by_status = {}
+    for ds in datasets.values('status').annotate(count=models.Count('id')):
+        by_status[ds['status']] = ds['count']
+
+    total_size = sum(ds.file_size for ds in datasets)
+    starred = datasets.filter(starred=True).count()
+
+    return Response({
+        "total": total,
+        "by_type": by_type,
+        "by_status": by_status,
+        "total_size": total_size,
+        "starred": starred,
+    })
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def category_list_create(request):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+
+    if request.method == 'GET':
+        categories = FileCategory.objects.filter(workspace=workspace)
+        serializer = FileCategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        name = request.data.get('name', '').strip()
+        color = request.data.get('color', '#6366f1')
+        if not name:
+            return Response({"error": "El nombre es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        cat, created = FileCategory.objects.get_or_create(
+            name=name, workspace=workspace, defaults={'color': color}
+        )
+        return Response(FileCategorySerializer(cat).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def category_detail(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        cat = FileCategory.objects.get(pk=pk, workspace=workspace)
+    except FileCategory.DoesNotExist:
+        return Response({"error": "Categoría no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    Dataset.objects.filter(category=cat).update(category=None)
+    cat.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

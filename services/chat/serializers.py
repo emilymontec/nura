@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import UserProfile, ChatSession, ChatMessage, Workspace, Dataset
+from .models import UserProfile, ChatSession, ChatMessage, Workspace, Dataset, FileCategory
 
 User = get_user_model()
 
@@ -42,22 +42,36 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
 
 
+class FileCategorySerializer(serializers.ModelSerializer):
+    dataset_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FileCategory
+        fields = ['id', 'name', 'color', 'workspace', 'created_at', 'dataset_count']
+        read_only_fields = ['id', 'workspace', 'created_at']
+
+    def get_dataset_count(self, obj):
+        return obj.datasets.count()
+
+
 class DatasetSerializer(serializers.ModelSerializer):
     uploaded_by = UserSerializer(read_only=True)
     file_url = serializers.SerializerMethodField()
+    category_detail = FileCategorySerializer(source='category', read_only=True)
 
     class Meta:
         model = Dataset
         fields = [
-            'id', 'file', 'file_url', 'original_name', 'file_name', 
-            'file_size', 'file_type', 'file_hash', 'uploaded_at', 
-            'updated_at', 'uploaded_by', 'workspace', 'status', 
-            'validation_errors', 'analysis_context'
+            'id', 'file', 'file_url', 'original_name', 'file_name',
+            'file_size', 'file_type', 'file_hash', 'uploaded_at',
+            'updated_at', 'uploaded_by', 'workspace', 'status',
+            'validation_errors', 'analysis_context',
+            'description', 'tags', 'category', 'category_detail', 'starred'
         ]
         read_only_fields = [
-            'id', 'original_name', 'file_name', 'file_size', 
-            'file_type', 'file_hash', 'uploaded_at', 'updated_at', 
-            'uploaded_by', 'workspace', 'status', 'validation_errors', 
+            'id', 'original_name', 'file_name', 'file_size',
+            'file_type', 'file_hash', 'uploaded_at', 'updated_at',
+            'uploaded_by', 'workspace', 'status', 'validation_errors',
             'analysis_context'
         ]
 

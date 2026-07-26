@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import MetricCard from "./MetricCard";
+import FileManager from "./FileManager";
 import {
   LayoutDashboard,
   Database,
@@ -24,6 +25,7 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Lightbulb,
+  FolderArchive,
 } from "lucide-react";
 
 async function getAuthHeaders(refreshAccessToken) {
@@ -48,6 +50,7 @@ export const NAV_SECTIONS = [
     items: [
       { id: "dashboard", icon: LayoutDashboard, label: "panel_principal", accent: "electric" },
       { id: "datasets", icon: Database, label: "gestion_datos", accent: "electric" },
+      { id: "archivos", icon: FolderArchive, label: "gestion_archivos", accent: "electric" },
     ],
   },
   {
@@ -236,7 +239,6 @@ export const VIEW_CONTENT = {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
 
-    // Cargar datasets
     const fetchDatasets = async () => {
       setLoading(true);
       const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -261,7 +263,6 @@ export const VIEW_CONTENT = {
       fetchDatasets();
     }, [search, filterType, filterStatus, refreshAccessToken]);
 
-    // Subir dataset
     const handleUpload = async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -288,7 +289,6 @@ export const VIEW_CONTENT = {
       }
     };
 
-    // Eliminar dataset
     const handleDelete = async (id) => {
       if (!window.confirm('¿Estás seguro de eliminar este dataset?')) return;
       
@@ -305,7 +305,6 @@ export const VIEW_CONTENT = {
       }
     };
 
-    // Renombrar dataset
     const handleRename = async (id, newName) => {
       const API_BASE = import.meta.env.VITE_API_URL || '';
       try {
@@ -322,7 +321,6 @@ export const VIEW_CONTENT = {
       }
     };
 
-    // Activar dataset para chat
     const handleActivate = async (id) => {
       const API_BASE = import.meta.env.VITE_API_URL || '';
       try {
@@ -480,6 +478,8 @@ export const VIEW_CONTENT = {
       </div>
     );
   },
+
+  archivos: () => <FileManager />,
 
   "chat-inteligente": () => {
     const { refreshAccessToken } = useAuth();
@@ -930,4 +930,5 @@ export const ICON_MAP = {
   TrendingUp,
   FileSpreadsheet,
   Lightbulb,
+  FolderArchive,
 };
