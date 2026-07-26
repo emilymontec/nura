@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from django.db import models
 from django.contrib.auth import get_user_model
 
@@ -48,6 +49,20 @@ class FileCategory(models.Model):
         return self.name
 
 
+class DatasetTag(models.Model):
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#6366f1')
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='tags')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ['name', 'workspace']
+
+    def __str__(self):
+        return self.name
+
+
 class Dataset(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pendiente'),
@@ -76,8 +91,15 @@ class Dataset(models.Model):
 
     description = models.TextField(blank=True, default='')
     tags = models.JSONField(default=list, blank=True)
+    tag_objects = models.ManyToManyField(DatasetTag, blank=True, related_name='datasets')
     category = models.ForeignKey(FileCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='datasets')
     starred = models.BooleanField(default=False)
+
+    archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    version = models.PositiveIntegerField(default=1)
+    parent_version = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_versions')
 
     class Meta:
         ordering = ['-uploaded_at']
@@ -115,6 +137,28 @@ class Dataset(models.Model):
         except (AttributeError, OSError):
             pass
         return sha256_hash.hexdigest()
+
+
+class DatasetVersion(models.Model):
+    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.PositiveIntegerField()
+    file = models.FileField(upload_to='datasets/versions/%Y/%m/%d/')
+    file_name = models.CharField(max_length=255)
+    file_size = models.BigIntegerField()
+    file_hash = models.CharField(max_length=64)
+    analysis_context = models.JSONField(default=dict, blank=True)
+    description = models.TextField(blank=True, default='')
+    tags = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    note = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = ['dataset', 'version_number']
+
+    def __str__(self):
+        return f"{self.dataset.file_name} v{self.version_number}"
 
 
 class ChatSession(models.Model):

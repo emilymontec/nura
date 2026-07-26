@@ -19,8 +19,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 
-from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset, FileCategory
-from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer, FileCategorySerializer
+from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset, FileCategory, DatasetTag, DatasetVersion
+from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer, FileCategorySerializer, DatasetTagSerializer, DatasetVersionSerializer
 from analytics.analyzer import (
     load_csv, prepare_dataframe, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
@@ -398,6 +398,12 @@ def dataset_list_create(request):
         
         datasets = Dataset.objects.filter(workspace=workspace)
         
+        archived = request.query_params.get('archived', '')
+        if archived == 'true':
+            datasets = datasets.filter(archived=True)
+        else:
+            datasets = datasets.filter(archived=False)
+        
         if search:
             datasets = datasets.filter(
                 Q(file_name__icontains=search) | 
@@ -486,10 +492,9 @@ def dataset_list_create(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def dataset_detail(request, pk):
-    """Obtener, renombrar o eliminar un dataset"""
     workspace, _ = Workspace.objects.get_or_create(owner=request.user)
     
     try:
@@ -501,17 +506,29 @@ def dataset_detail(request, pk):
         serializer = DatasetSerializer(dataset)
         return Response(serializer.data)
     
-    elif request.method == 'PUT':
-        # Renombrar
-        new_name = request.data.get('file_name')
-        if new_name:
-            dataset.file_name = new_name
-            dataset.save()
+    elif request.method in ('PUT', 'PATCH'):
+        if 'file_name' in request.data:
+            dataset.file_name = request.data['file_name']
+        if 'description' in request.data:
+            dataset.description = request.data['description']
+        if 'tags' in request.data:
+            dataset.tags = request.data['tags']
+        if 'starred' in request.data:
+            dataset.starred = request.data['starred']
+        if 'category' in request.data:
+            cat_id = request.data['category']
+            if cat_id:
+                try:
+                    dataset.category = FileCategory.objects.get(pk=cat_id, workspace=workspace)
+                except FileCategory.DoesNotExist:
+                    return Response({"error": "Categoría no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                dataset.category = None
+        dataset.save()
         serializer = DatasetSerializer(dataset)
         return Response(serializer.data)
     
     elif request.method == 'DELETE':
-        # Eliminar archivo físico y registro
         if dataset.file:
             dataset.file.delete(save=False)
         dataset.delete()
@@ -670,3 +687,432 @@ def category_detail(request, pk):
     Dataset.objects.filter(category=cat).update(category=None)
     cat.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_duplicate(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    dataset.file.seek(0)
+    new_name = request.data.get('file_name', f"Copia de {dataset.file_name}")
+    new_ds = Dataset(
+        file=dataset.file,
+        original_name=dataset.original_name,
+        file_name=new_name,
+        file_size=dataset.file_size,
+        file_type=dataset.file_type,
+        file_hash=f"{dataset.file_hash}_{uuid.uuid4().hex[:8]}",
+        uploaded_by=request.user,
+        workspace=workspace,
+        status=dataset.status,
+        validation_errors=list(dataset.validation_errors),
+        analysis_context=dict(dataset.analysis_context),
+        description=dataset.description,
+        tags=list(dataset.tags),
+        category=dataset.category,
+        starred=False,
+    )
+    new_ds.save()
+    serializer = DatasetSerializer(new_ds)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_archive(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    from django.utils import timezone
+    dataset.archived = not dataset.archived
+    dataset.archived_at = timezone.now() if dataset.archived else None
+    dataset.save(update_fields=['archived', 'archived_at', 'updated_at'])
+    return Response({"archived": dataset.archived, "archived_at": dataset.archived_at})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_reanalyze(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    if dataset.file_type not in ['csv', 'xlsx']:
+        return Response({"error": "Solo se pueden analizar archivos CSV y Excel"}, status=status.HTTP_400_BAD_REQUEST)
+
+    dataset.status = 'processing'
+    dataset.save(update_fields=['status'])
+
+    try:
+        dataset.file.seek(0)
+        context = get_analytics_context(dataset.file, dataset.file_name)
+        dataset.analysis_context = make_json_safe(context)
+        dataset.status = 'valid'
+        dataset.save(update_fields=['analysis_context', 'status', 'updated_at'])
+    except Exception as e:
+        dataset.status = 'invalid'
+        dataset.validation_errors.append(f"Error en re-análisis: {str(e)}")
+        dataset.save(update_fields=['status', 'validation_errors', 'updated_at'])
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_download(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    from django.http import FileResponse
+    try:
+        dataset.file.seek(0)
+        response = FileResponse(dataset.file.open('rb'), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{dataset.file_name}"'
+        return response
+    except Exception:
+        return Response({"error": "No se pudo descargar el archivo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_merge(request):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    ids = request.data.get('dataset_ids', [])
+    merge_type = request.data.get('type', 'concat')
+    new_name = request.data.get('file_name', 'Dataset fusionado')
+    join_column = request.data.get('join_column', '')
+
+    if len(ids) < 2:
+        return Response({"error": "Se necesitan al menos 2 datasets para fusionar"}, status=status.HTTP_400_BAD_REQUEST)
+
+    datasets = Dataset.objects.filter(pk__in=ids, workspace=workspace)
+    if datasets.count() != len(ids):
+        return Response({"error": "Algunos datasets no fueron encontrados"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        frames = []
+        for ds in datasets:
+            ds.file.seek(0)
+            if ds.file_type == 'csv':
+                df = pd.read_csv(ds.file)
+            elif ds.file_type == 'xlsx':
+                df = pd.read_excel(ds.file)
+            else:
+                continue
+            frames.append(df)
+
+        if not frames:
+            return Response({"error": "No se pudieron leer los archivos"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if merge_type == 'concat':
+            merged = pd.concat(frames, ignore_index=True)
+        elif merge_type == 'join' and join_column:
+            merged = frames[0]
+            for f in frames[1:]:
+                if join_column in merged.columns and join_column in f.columns:
+                    merged = merged.merge(f, on=join_column, how='left', suffixes=('', '_dup'))
+                else:
+                    merged = pd.concat([merged, f], ignore_index=True)
+        else:
+            merged = pd.concat(frames, ignore_index=True)
+
+        import io as _io
+        buffer = _io.BytesIO()
+        merged.to_csv(buffer, index=False)
+        buffer.seek(0)
+
+        from django.core.files.base import ContentFile
+        file_content = ContentFile(buffer.read(), name=f"{new_name}.csv")
+        file_hash = hashlib.sha256(buffer.getvalue()).hexdigest()
+        buffer.seek(0)
+        file_size = len(buffer.getvalue())
+
+        ds = Dataset(
+            file=file_content,
+            original_name=f"{new_name}.csv",
+            file_name=f"{new_name}.csv",
+            file_size=file_size,
+            file_type='csv',
+            file_hash=f"{file_hash}_{uuid.uuid4().hex[:8]}",
+            uploaded_by=request.user,
+            workspace=workspace,
+            status='valid',
+            description=f"Fusionado de {datasets.count()} datasets: {', '.join(ds.file_name for ds in datasets)}",
+        )
+        ds.save()
+
+        ds.file.seek(0)
+        context = get_analytics_context(ds.file, ds.file_name)
+        ds.analysis_context = make_json_safe(context)
+        ds.save(update_fields=['analysis_context'])
+
+        return Response(DatasetSerializer(ds).data, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"error": f"Error al fusionar: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def tag_list_create(request):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+
+    if request.method == 'GET':
+        tag_filter = request.query_params.get('tag', '')
+        tags = DatasetTag.objects.filter(workspace=workspace)
+        if tag_filter:
+            tags = tags.filter(name__icontains=tag_filter)
+        serializer = DatasetTagSerializer(tags, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        name = request.data.get('name', '').strip()
+        color = request.data.get('color', '#6366f1')
+        if not name:
+            return Response({"error": "El nombre es requerido"}, status=status.HTTP_400_BAD_REQUEST)
+        tag, created = DatasetTag.objects.get_or_create(
+            name=name, workspace=workspace, defaults={'color': color}
+        )
+        return Response(DatasetTagSerializer(tag).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def tag_detail(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        tag = DatasetTag.objects.get(pk=pk, workspace=workspace)
+    except DatasetTag.DoesNotExist:
+        return Response({"error": "Etiqueta no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    tag.datasets.clear()
+    tag.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_add_tags(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    tag_ids = request.data.get('tag_ids', [])
+    tag_names = request.data.get('tags', [])
+
+    for tag_id in tag_ids:
+        try:
+            tag = DatasetTag.objects.get(pk=tag_id, workspace=workspace)
+            dataset.tag_objects.add(tag)
+        except DatasetTag.DoesNotExist:
+            pass
+
+    for name in tag_names:
+        tag, _ = DatasetTag.objects.get_or_create(name=name, workspace=workspace)
+        dataset.tag_objects.add(tag)
+
+    all_tags = list(dataset.tags or [])
+    for name in tag_names:
+        if name not in all_tags:
+            all_tags.append(name)
+    dataset.tags = all_tags
+    dataset.save(update_fields=['tags', 'updated_at'])
+
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_remove_tags(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    tag_ids = request.data.get('tag_ids', [])
+    tag_names = request.data.get('tags', [])
+
+    for tag_id in tag_ids:
+        try:
+            tag = DatasetTag.objects.get(pk=tag_id, workspace=workspace)
+            dataset.tag_objects.remove(tag)
+        except DatasetTag.DoesNotExist:
+            pass
+
+    current_tags = list(dataset.tags or [])
+    current_tags = [t for t in current_tags if t not in tag_names]
+    dataset.tags = current_tags
+    dataset.save(update_fields=['tags', 'updated_at'])
+
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def dataset_versions(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        versions = DatasetVersion.objects.filter(dataset=dataset)
+        serializer = DatasetVersionSerializer(versions, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        note = request.data.get('note', '')
+        version_num = dataset.version + 1
+
+        dataset.file.seek(0)
+        file_content = dataset.file.read()
+        dataset.file.seek(0)
+
+        from django.core.files.base import ContentFile
+        new_file = ContentFile(file_content, name=f"{dataset.file_name}_v{version_num}")
+
+        version = DatasetVersion(
+            dataset=dataset,
+            version_number=version_num,
+            file=new_file,
+            file_name=dataset.file_name,
+            file_size=dataset.file_size,
+            file_hash=dataset.file_hash,
+            analysis_context=dict(dataset.analysis_context),
+            description=dataset.description,
+            tags=list(dataset.tags),
+            created_by=request.user,
+            note=note,
+        )
+        version.save()
+
+        dataset.version = version_num
+        dataset.save(update_fields=['version', 'updated_at'])
+
+        return Response(DatasetVersionSerializer(version).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dataset_restore_version(request, pk, version_pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        version = DatasetVersion.objects.get(pk=version_pk, dataset=dataset)
+    except DatasetVersion.DoesNotExist:
+        return Response({"error": "Versión no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    dataset.file = version.file
+    dataset.file_name = version.file_name
+    dataset.file_size = version.file_size
+    dataset.file_hash = version.file_hash
+    dataset.analysis_context = version.analysis_context
+    dataset.description = version.description
+    dataset.tags = version.tags
+    dataset.version = version.version_number
+    dataset.save()
+
+    return Response(DatasetSerializer(dataset).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_explore(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    ctx = dataset.analysis_context or {}
+    return Response({
+        "file_name": dataset.file_name,
+        "summary": ctx.get("summary", {}),
+        "columns": ctx.get("columns", []),
+        "preview": ctx.get("preview", []),
+        "kpis": ctx.get("kpis", {}),
+        "charts": ctx.get("charts", {}),
+        "health": ctx.get("health", {}),
+        "correlations": ctx.get("correlations", {}),
+        "cleaning": ctx.get("cleaning", []),
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_preview(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    n = int(request.query_params.get('rows', 10))
+    try:
+        dataset.file.seek(0)
+        if dataset.file_type == 'csv':
+            df = pd.read_csv(dataset.file)
+        elif dataset.file_type == 'xlsx':
+            df = pd.read_excel(dataset.file)
+        else:
+            return Response({"error": "Tipo de archivo no soportado"}, status=status.HTTP_400_BAD_REQUEST)
+
+        preview = get_preview(df, n)
+        return Response({"preview": preview, "total_rows": len(df), "columns": list(df.columns)})
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_columns(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    cols = (dataset.analysis_context or {}).get("columns", [])
+    return Response({"columns": cols})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dataset_statistics(request, pk):
+    workspace, _ = Workspace.objects.get_or_create(owner=request.user)
+    try:
+        dataset = Dataset.objects.get(pk=pk, workspace=workspace)
+    except Dataset.DoesNotExist:
+        return Response({"error": "Dataset no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    ctx = dataset.analysis_context or {}
+    return Response({
+        "summary": ctx.get("summary", {}),
+        "kpis": ctx.get("kpis", {}),
+        "health": ctx.get("health", {}),
+        "correlations": ctx.get("correlations", {}),
+        "anomalies": ctx.get("anomalies", {}),
+        "trends": ctx.get("trends", {}),
+    })

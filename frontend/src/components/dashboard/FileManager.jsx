@@ -23,6 +23,11 @@ import {
   Eye,
   Copy,
   Tag,
+  Archive,
+  RefreshCw,
+  GitBranch,
+  Merge,
+  Play,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -94,6 +99,8 @@ function MetadataModal({ dataset, onClose }) {
             ["Hash", dataset.file_hash?.slice(0, 16) + "..."],
             ["Estado", dataset.status?.toUpperCase()],
             ["Estrellas", dataset.starred ? "Sí" : "No"],
+            ["Versión", `v${dataset.version || 1}`],
+            ["Archivado", dataset.archived ? "Sí" : "No"],
           ].map(([label, val]) => (
             <div key={label} className="space-y-0.5">
               <div className="text-white/30 uppercase tracking-wider text-[9px]">{label}</div>
@@ -214,8 +221,13 @@ export default function FileManager() {
 
   const [showMetadata, setShowMetadata] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
+  const [showVersions, setShowVersions] = useState(null);
+  const [showExplore, setShowExplore] = useState(null);
+  const [showTagManager, setShowTagManager] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [archivedFilter, setArchivedFilter] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -229,6 +241,7 @@ export default function FileManager() {
       if (filterStatus) params.set("status", filterStatus);
       if (filterCategory) params.set("category", filterCategory);
       if (filterStarred) params.set("starred", "true");
+      if (archivedFilter) params.set("archived", "true");
       params.set("sort", sortBy);
 
       const [dsRes, catRes, statsRes] = await Promise.all([
@@ -245,7 +258,7 @@ export default function FileManager() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterType, filterStatus, filterCategory, filterStarred, sortBy, getHeaders]);
+  }, [search, filterType, filterStatus, filterCategory, filterStarred, archivedFilter, sortBy, getHeaders]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -383,6 +396,89 @@ export default function FileManager() {
     }
   };
 
+  const handleDuplicate = async (id) => {
+    try {
+      const headers = await getHeaders();
+      headers["Content-Type"] = "application/json";
+      await fetch(`${API_BASE}/api/datasets/${id}/duplicate`, { method: "POST", headers, body: JSON.stringify({}) });
+      fetchData();
+    } catch (e) {
+      console.error("Duplicate error:", e);
+    }
+  };
+
+  const handleArchive = async (id) => {
+    try {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/api/datasets/${id}/archive`, { method: "POST", headers });
+      fetchData();
+    } catch (e) {
+      console.error("Archive error:", e);
+    }
+  };
+
+  const handleReanalyze = async (id) => {
+    try {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/api/datasets/${id}/reanalyze`, { method: "POST", headers });
+      fetchData();
+    } catch (e) {
+      console.error("Reanalyze error:", e);
+    }
+  };
+
+  const handleCreateVersion = async (id) => {
+    try {
+      const headers = await getHeaders();
+      headers["Content-Type"] = "application/json";
+      const note = window.prompt("Nota para esta versión (opcional):") || "";
+      await fetch(`${API_BASE}/api/datasets/${id}/versions`, {
+        method: "POST", headers, body: JSON.stringify({ note }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error("Create version error:", e);
+    }
+  };
+
+  const handleRestoreVersion = async (datasetId, versionId) => {
+    try {
+      const headers = await getHeaders();
+      await fetch(`${API_BASE}/api/datasets/${datasetId}/versions/${versionId}/restore`, { method: "POST", headers });
+      setShowVersions(null);
+      fetchData();
+    } catch (e) {
+      console.error("Restore version error:", e);
+    }
+  };
+
+  const handleAddTag = async (id, tagName) => {
+    if (!tagName.trim()) return;
+    try {
+      const headers = await getHeaders();
+      headers["Content-Type"] = "application/json";
+      await fetch(`${API_BASE}/api/datasets/${id}/tags/add`, {
+        method: "POST", headers, body: JSON.stringify({ tags: [tagName.trim()] }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error("Add tag error:", e);
+    }
+  };
+
+  const handleRemoveTag = async (id, tagName) => {
+    try {
+      const headers = await getHeaders();
+      headers["Content-Type"] = "application/json";
+      await fetch(`${API_BASE}/api/datasets/${id}/tags/remove`, {
+        method: "POST", headers, body: JSON.stringify({ tags: [tagName] }),
+      });
+      fetchData();
+    } catch (e) {
+      console.error("Remove tag error:", e);
+    }
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -418,6 +514,12 @@ export default function FileManager() {
               {stats.starred > 0 && <span className="text-yellow-400">{stats.starred} favoritos</span>}
             </div>
           )}
+          <button
+            onClick={() => setShowMerge(true)}
+            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-[11px] flex items-center gap-1.5"
+          >
+            <Merge className="w-3.5 h-3.5" /> Fusionar
+          </button>
           <button
             onClick={() => setShowCategories(true)}
             className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-[11px] flex items-center gap-1.5"
@@ -492,6 +594,16 @@ export default function FileManager() {
           }`}
         >
           <Star className="w-3 h-3" fill={filterStarred ? "currentColor" : "none"} />
+        </button>
+        <button
+          onClick={() => setArchivedFilter(!archivedFilter)}
+          className={`px-2.5 py-1.5 rounded-lg border text-xs flex items-center gap-1 transition-all ${
+            archivedFilter
+              ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+              : "bg-white/5 border-white/10 text-white/50 hover:text-white/70"
+          }`}
+        >
+          <Archive className="w-3 h-3" />
         </button>
         <select
           value={sortBy}
@@ -638,14 +750,32 @@ export default function FileManager() {
                     <button onClick={() => { setEditingId(ds.id); setEditName(ds.file_name); }} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60">
                       <Pencil className="w-3 h-3" />
                     </button>
-                    <button onClick={() => setShowMetadata(ds)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60">
+                    <button onClick={() => handleDuplicate(ds.id)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Duplicar">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => handleArchive(ds.id)} className={`p-1 rounded hover:bg-white/5 ${ds.archived ? "text-orange-400" : "text-white/30 hover:text-orange-400"}`} title={ds.archived ? "Desarchivar" : "Archivar"}>
+                      <Archive className="w-3 h-3" />
+                    </button>
+                    {ds.file_type === 'csv' || ds.file_type === 'xlsx' ? (
+                      <button onClick={() => handleReanalyze(ds.id)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-emerald-400" title="Re-analizar">
+                        <RefreshCw className="w-3 h-3" />
+                      </button>
+                    ) : null}
+                    <button onClick={() => handleCreateVersion(ds.id)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Crear versión">
+                      <GitBranch className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => setShowVersions(ds)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Ver versiones">
+                      <GitBranch className="w-3 h-3" />
+                    </button>
+                    <button onClick={() => setShowExplore(ds)} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Explorar">
                       <Eye className="w-3 h-3" />
                     </button>
-                    {ds.file_url && (
-                      <a href={ds.file_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60">
-                        <Download className="w-3 h-3" />
-                      </a>
-                    )}
+                    <button onClick={() => setShowTagManager(ds)} className={`p-1 rounded hover:bg-white/5 ${ds.tags?.length > 0 ? "text-nura-electric" : "text-white/30 hover:text-nura-electric"}`} title="Etiquetas">
+                      <Tag className="w-3 h-3" />
+                    </button>
+                    <a href={`${API_BASE}/api/datasets/${ds.id}/download/`} className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Descargar" onClick={(e) => e.stopPropagation()}>
+                      <Download className="w-3 h-3" />
+                    </a>
                     <div className="relative group/cat">
                       <button className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white/60">
                         <FolderOpen className="w-3 h-3" />
@@ -727,10 +857,10 @@ export default function FileManager() {
                   </div>
                   <div className="flex items-center justify-center gap-1 pt-1 border-t border-nura-border opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => { setEditingId(ds.id); setEditName(ds.file_name); }} className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60"><Pencil className="w-3 h-3" /></button>
-                    <button onClick={() => setShowMetadata(ds)} className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60"><Eye className="w-3 h-3" /></button>
-                    {ds.file_url && (
-                      <a href={ds.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60"><Download className="w-3 h-3" /></a>
-                    )}
+                    <button onClick={() => handleDuplicate(ds.id)} className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Duplicar"><Copy className="w-3 h-3" /></button>
+                    <button onClick={() => handleArchive(ds.id)} className={`p-1.5 rounded hover:bg-white/5 ${ds.archived ? "text-orange-400" : "text-white/30 hover:text-orange-400"}`} title="Archivar"><Archive className="w-3 h-3" /></button>
+                    <button onClick={() => setShowExplore(ds)} className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60" title="Explorar"><Eye className="w-3 h-3" /></button>
+                    <a href={`${API_BASE}/api/datasets/${ds.id}/download/`} className="p-1.5 rounded hover:bg-white/5 text-white/30 hover:text-white/60" onClick={(e) => e.stopPropagation()}><Download className="w-3 h-3" /></a>
                     <button onClick={() => handleDelete(ds.id)} className="p-1.5 rounded hover:bg-red-500/10 text-white/30 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 </div>
@@ -750,6 +880,219 @@ export default function FileManager() {
           onClose={() => setShowCategories(false)}
         />
       )}
+      {showMerge && (
+        <MergeModal
+          datasets={datasets}
+          onMerge={async (ids, name, type, joinCol) => {
+            try {
+              const headers = await getHeaders();
+              headers["Content-Type"] = "application/json";
+              const res = await fetch(`${API_BASE}/api/datasets/merge`, {
+                method: "POST", headers,
+                body: JSON.stringify({ dataset_ids: ids, file_name: name, type, join_column: joinCol }),
+              });
+              if (res.ok) fetchData();
+            } catch (e) { console.error("Merge error:", e); }
+          }}
+          onClose={() => setShowMerge(false)}
+        />
+      )}
+      {showVersions && (
+        <VersionModal
+          dataset={showVersions}
+          onRestore={handleRestoreVersion}
+          onClose={() => setShowVersions(null)}
+          getHeaders={getHeaders}
+        />
+      )}
+      {showExplore && (
+        <ExploreModal dataset={showExplore} onClose={() => setShowExplore(null)} getHeaders={getHeaders} />
+      )}
+      {showTagManager && (
+        <TagManagerModal
+          dataset={showTagManager}
+          onAdd={(name) => handleAddTag(showTagManager.id, name)}
+          onRemove={(name) => handleRemoveTag(showTagManager.id, name)}
+          onClose={() => setShowTagManager(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function MergeModal({ datasets, onMerge, onClose }) {
+  const [selected, setSelected] = useState([]);
+  const [name, setName] = useState("Dataset fusionado");
+  const [type, setType] = useState("concat");
+  const [joinCol, setJoinCol] = useState("");
+
+  const toggle = (id) => {
+    setSelected((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-nura-gray border border-nura-border rounded-2xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-medium text-sm flex items-center gap-2"><Merge className="w-4 h-4" /> Fusionar Datasets</h3>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+          {datasets.filter(d => !d.archived).map((ds) => (
+            <label key={ds.id} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${selected.includes(ds.id) ? "bg-nura-electric/10 border border-nura-electric/30" : "hover:bg-white/[0.03] border border-transparent"}`}>
+              <input type="checkbox" checked={selected.includes(ds.id)} onChange={() => toggle(ds.id)} className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-nura-electric" />
+              <span className="text-white/70 text-xs">{ds.file_name}</span>
+              <span className="text-white/30 text-[10px] ml-auto">{ds.file_type?.toUpperCase()}</span>
+            </label>
+          ))}
+        </div>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del dataset fusionado" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-nura-electric/40" />
+        <select value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 text-xs focus:outline-none cursor-pointer">
+          <option value="concat">Concatenar (uno debajo del otro)</option>
+          <option value="join">Unir por columna (left join)</option>
+        </select>
+        {type === "join" && (
+          <input type="text" value={joinCol} onChange={(e) => setJoinCol(e.target.value)} placeholder="Nombre de la columna para unir" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-nura-electric/40" />
+        )}
+        <button onClick={() => { if (selected.length >= 2) { onMerge(selected, name, type, joinCol); onClose(); } }} disabled={selected.length < 2} className={`w-full py-2 rounded-lg text-xs font-medium transition-all ${selected.length >= 2 ? "bg-nura-electric text-white hover:bg-nura-electric/80" : "bg-white/5 text-white/30 cursor-not-allowed"}`}>
+          Fusionar {selected.length} datasets
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VersionModal({ dataset, onRestore, onClose, getHeaders }) {
+  const [versions, setVersions] = useState([]);
+  useEffect(() => {
+    getHeaders().then((h) => {
+      fetch(`${API_BASE}/api/datasets/${dataset.id}/versions`, { headers: h })
+        .then((r) => r.json()).then(setVersions).catch(() => {});
+    });
+  }, [dataset.id, getHeaders]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-nura-gray border border-nura-border rounded-2xl w-full max-w-lg p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-medium text-sm flex items-center gap-2"><GitBranch className="w-4 h-4" /> Versiones — {dataset.file_name}</h3>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+          {versions.length === 0 && <div className="text-white/30 text-center text-xs py-4">No hay versiones guardadas</div>}
+          {versions.map((v) => (
+            <div key={v.id} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+              <div>
+                <div className="text-white/70 text-xs">v{v.version_number} — {v.file_name}</div>
+                <div className="text-white/30 text-[10px]">{new Date(v.created_at).toLocaleString("es-ES")}{v.note ? ` — ${v.note}` : ""}</div>
+              </div>
+              <button onClick={() => { onRestore(dataset.id, v.id); }} className="px-2 py-1 rounded bg-nura-electric/20 text-nura-electric text-[10px] hover:bg-nura-electric/30">
+                Restaurar
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExploreModal({ dataset, onClose, getHeaders }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    getHeaders().then((h) => {
+      fetch(`${API_BASE}/api/datasets/${dataset.id}/explore`, { headers: h })
+        .then((r) => r.json()).then(setData).catch(() => {});
+    });
+  }, [dataset.id, getHeaders]);
+
+  if (!data) return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-nura-gray border border-nura-border rounded-2xl w-full max-w-3xl p-6 text-center text-white/40 text-xs" onClick={(e) => e.stopPropagation()}>Cargando...</div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-nura-gray border border-nura-border rounded-2xl w-full max-w-4xl max-h-[80vh] overflow-y-auto p-6 space-y-4 scrollbar-thin" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-medium text-sm">Explorar — {dataset.file_name}</h3>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+        {data.summary && (
+          <div className="grid grid-cols-4 gap-2">
+            {Object.entries(data.summary).map(([k, v]) => (
+              <div key={k} className="p-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div className="text-white/30 text-[9px] uppercase">{k}</div>
+                <div className="text-white/70 text-xs">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {data.preview?.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="border-b border-nura-border">
+                  {Object.keys(data.preview[0]).map((col) => (
+                    <th key={col} className="text-left text-white/30 uppercase px-2 py-1 font-normal">{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.preview.map((row, i) => (
+                  <tr key={i} className="border-b border-white/[0.03]">
+                    {Object.values(row).map((val, j) => (
+                      <td key={j} className="text-white/60 px-2 py-1">{val === null ? "—" : String(val)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {data.columns?.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-white/30 text-[9px] uppercase">Columnas ({data.columns.length})</div>
+            <div className="grid grid-cols-3 gap-1">
+              {data.columns.map((c, i) => (
+                <div key={i} className="text-white/50 text-[10px] p-1 rounded bg-white/[0.02]">
+                  {c.name || c} {c.dtype ? `(${c.dtype})` : ""}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TagManagerModal({ dataset, onAdd, onRemove, onClose }) {
+  const [newTag, setNewTag] = useState("");
+  const tags = dataset?.tags || [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-nura-gray border border-nura-border rounded-2xl w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-medium text-sm flex items-center gap-2"><Tag className="w-4 h-4" /> Etiquetas</h3>
+          <button onClick={onClose} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); onAdd(newTag); setNewTag(""); }} className="flex gap-2">
+          <input type="text" value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Nueva etiqueta..." className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-nura-electric/40" />
+          <button type="submit" className="px-3 py-1.5 rounded-lg bg-nura-electric/20 border border-nura-electric/30 text-nura-electric text-xs hover:bg-nura-electric/30">+</button>
+        </form>
+        <div className="flex flex-wrap gap-1.5">
+          {tags.length === 0 && <div className="text-white/30 text-[11px] text-center py-4 w-full">Sin etiquetas</div>}
+          {tags.map((t, i) => (
+            <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-nura-electric/10 text-nura-electric text-[11px] border border-nura-electric/20">
+              {t}
+              <button onClick={() => onRemove(t)} className="hover:text-white/60"><X className="w-2.5 h-2.5" /></button>
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
