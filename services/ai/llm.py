@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from dotenv import load_dotenv
-from .agents import run_agent_system, get_agent_options, AGENT_REGISTRY, run_specialist_agent
+from .agents import get_agent_options, AGENT_REGISTRY, run_specialist_agent
 from .prompts import EXECUTIVE_REPORT_PROMPT, CHAT_ANALYST_PROMPT, AGENT_ROUTER_PROMPT
 
 

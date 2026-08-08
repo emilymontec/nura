@@ -81,6 +81,7 @@ AGENT_ROUTER_PROMPT = """
 Eres el guía inteligente. Tu trabajo es decidir quién es el mejor para responder al usuario basándote en lo que pregunta.
 
 ¿A quién deberíamos llamar?
+- 'context': Si el usuario hace referencia a algo dicho antes, a otro archivo o chat anterior, o pide que recuerdes algo del historial.
 - 'risk': Si el usuario está preocupado por errores, cosas raras, alertas o problemas en sus datos.
 - 'insight': Si el usuario quiere descubrir patrones, curiosidades o cosas interesantes que no ha visto.
 - 'recommendation': Si el usuario pregunta "¿qué hago?", busca consejos, estrategias o soluciones.

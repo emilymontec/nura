@@ -15,6 +15,7 @@ import Contact from './components/pages/Contact';
 import About from './components/pages/About';
 import Terms from './components/pages/Terms';
 import Privacy from './components/pages/Privacy';
+import NotFound from './components/pages/NotFound';
 import MainViewport from './components/dashboard/MainViewport';
 import './styles/main.css';
 
@@ -60,6 +61,7 @@ function App() {
               <ChatApp />
             </ProtectedRoute>
           } />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -162,7 +162,13 @@ class DatasetVersion(models.Model):
 
 
 class ChatSession(models.Model):
-    session_id = models.CharField(max_length=120, unique=True)
+    # NOTA DE SEGURIDAD: session_id ya NO es único a nivel global. El frontend
+    # usa 'default' como id inicial para todos los usuarios, por lo que un
+    # unique=True global causaba que TODOS los usuarios compartieran la misma
+    # fila de chat (fuga de datos entre cuentas). Ahora la unicidad es por
+    # (user, session_id), y toda sesión creada después de este cambio exige
+    # un usuario autenticado.
+    session_id = models.CharField(max_length=120)
     title = models.CharField(max_length=200, default="Nueva sesión")
     rolling_summary = models.TextField(blank=True, default="")
     dataset_context = models.JSONField(default=dict, blank=True)
@@ -177,9 +183,18 @@ class ChatSession(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        # Un mismo session_id puede repetirse entre usuarios distintos
+        # (p. ej. 'default'), pero nunca dos veces para el mismo usuario.
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'session_id'],
+                name='unique_session_id_per_user',
+            ),
+        ]
 
     def __str__(self):
-        return self.session_id
+        owner = self.user.email if self.user_id else "sin-usuario"
+        return f"{self.session_id} ({owner})"
 
 
 class ChatMessage(models.Model):

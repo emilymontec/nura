@@ -138,20 +138,31 @@ WSGI_APPLICATION = 'nura.wsgi.application'
 
 
 # Database
+# Antes: si no había DATABASE_URL en el entorno, Django ni siquiera arrancaba
+# (raise ValueError), y el único motor soportado era Postgres — obligando a
+# tener Postgres corriendo en local incluso fuera de Docker. Ahora, si no
+# hay DATABASE_URL, se usa SQLite automáticamente para poder levantar el
+# proyecto en local sin dependencias externas.
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is required - set it in your .env file")
-parsed = urlparse(DATABASE_URL)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': parsed.path.lstrip('/'),
-        'USER': unquote(parsed.username or ''),
-        'PASSWORD': unquote(parsed.password or ''),
-        'HOST': parsed.hostname or '',
-        'PORT': parsed.port or '5432',
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    parsed = urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': unquote(parsed.username or ''),
+            'PASSWORD': unquote(parsed.password or ''),
+            'HOST': parsed.hostname or '',
+            'PORT': parsed.port or '5432',
+        }
+    }
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -172,44 +183,60 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = []
 
-# Media files (uploads) - Supabase Storage
-# Supabase Storage is S3-compatible
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# Media files (uploads) - Supabase Storage (producción) o disco local (desarrollo)
+# ANTES: el backend de storage estaba forzado a S3Boto3Storage sin ningún
+# fallback. Sin credenciales de Supabase (lo normal en un entorno local
+# recién clonado), cualquier subida de archivo fallaba en tiempo de
+# ejecución, aunque el servidor arrancara sin errores aparentes.
+USE_S3_STORAGE = bool(os.getenv('SUPABASE_PROJECT_ID') and os.getenv('SUPABASE_ACCESS_KEY_ID'))
 
-# Supabase S3 Configuration
-S3_ACCESS_KEY_ID = os.getenv('SUPABASE_ACCESS_KEY_ID')
-S3_SECRET_ACCESS_KEY = os.getenv('SUPABASE_SECRET_ACCESS_KEY')
-S3_STORAGE_BUCKET_NAME = os.getenv('SUPABASE_BUCKET_NAME', 'nura-datasets')
-S3_ENDPOINT_URL = f"https://{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/s3"
-S3_REGION_NAME = 'us-east-1'  # Default for Supabase
-S3_FILE_OVERWRITE = False
-S3_DEFAULT_ACL = 'public-read'  # Or 'private' depending on your needs
-S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
-}
+if USE_S3_STORAGE:
+    # Supabase S3 Configuration
+    S3_ACCESS_KEY_ID = os.getenv('SUPABASE_ACCESS_KEY_ID')
+    S3_SECRET_ACCESS_KEY = os.getenv('SUPABASE_SECRET_ACCESS_KEY')
+    S3_STORAGE_BUCKET_NAME = os.getenv('SUPABASE_BUCKET_NAME', 'nura-datasets')
+    S3_ENDPOINT_URL = f"https://{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/s3"
+    S3_REGION_NAME = 'us-east-1'  # Default for Supabase
+    S3_FILE_OVERWRITE = False
+    S3_DEFAULT_ACL = 'public-read'  # Or 'private' depending on your needs
+    S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
 
-# Optional: If you want to use custom domain
-# AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/object/public/{S3_STORAGE_BUCKET_NAME}"
-
-STORAGES = {
-    'default': {
-        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
-        'OPTIONS': {
-            'access_key': S3_ACCESS_KEY_ID,
-            'secret_key': S3_SECRET_ACCESS_KEY,
-            'bucket_name': S3_STORAGE_BUCKET_NAME,
-            'endpoint_url': S3_ENDPOINT_URL,
-            'region_name': S3_REGION_NAME,
-            'file_overwrite': S3_FILE_OVERWRITE,
-            'default_acl': S3_DEFAULT_ACL,
-            'object_parameters': S3_OBJECT_PARAMETERS,
-            'querystring_auth': False,
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'access_key': S3_ACCESS_KEY_ID,
+                'secret_key': S3_SECRET_ACCESS_KEY,
+                'bucket_name': S3_STORAGE_BUCKET_NAME,
+                'endpoint_url': S3_ENDPOINT_URL,
+                'region_name': S3_REGION_NAME,
+                'file_overwrite': S3_FILE_OVERWRITE,
+                'default_acl': S3_DEFAULT_ACL,
+                'object_parameters': S3_OBJECT_PARAMETERS,
+                'querystring_auth': False,
+            },
         },
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',
-    },
-}
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+else:
+    # Fallback de desarrollo: guarda los archivos subidos en disco, bajo
+    # MEDIA_ROOT, y los sirve desde MEDIA_URL. No requiere ninguna cuenta
+    # externa para levantar el proyecto localmente.
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

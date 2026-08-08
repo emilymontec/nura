@@ -83,8 +83,12 @@ AGENT_REGISTRY = {
 
 
 def get_agent_options() -> str:
+    # Antes: 'priority' se definía en cada AgentProfile pero nunca se leía en
+    # ningún lugar del código; el orden dependía solo del orden de inserción
+    # del diccionario. Ahora se ordena explícitamente por prioridad.
+    ordered_agents = sorted(AGENT_REGISTRY.values(), key=lambda a: -a.priority)
     options = []
-    for agent in AGENT_REGISTRY.values():
+    for agent in ordered_agents:
         options.append(f"- {agent.key}: {agent.name}. Enfoque: {agent.focus}")
     options.append("- chat: Conversación general o preguntas que no requieren un especialista.")
     return "\n".join(options)
@@ -101,8 +105,3 @@ def run_specialist_agent(agent: AgentProfile, question: str, context: str, histo
         question=question,
     )
     return llm_callback(prompt=prompt, system_message=f"Eres {agent.name} dentro del sistema multiagente.", temperature=0.25)
-
-
-def run_agent_system(question: str, context: str, history: str, industry: str, llm_callback) -> List[Dict[str, str]]:
-    results = []
-    return results

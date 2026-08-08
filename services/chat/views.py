@@ -4,7 +4,8 @@ import traceback
 import os
 import pandas as pd
 import chardet
-from django.http import JsonResponse
+from docx import Document as DocxDocument
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -21,6 +22,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import ChatSession, ChatMessage, UserProfile, Workspace, Dataset, FileCategory, DatasetTag, DatasetVersion
 from .serializers import UserProfileSerializer, UserSerializer, WorkspaceSerializer, DatasetSerializer, FileCategorySerializer, DatasetTagSerializer, DatasetVersionSerializer
+from . import quotas
+from . import reports
 from analytics.analyzer import (
     load_csv, prepare_dataframe, dataset_summary, column_info, evaluate_business,
     analyze_numeric_trends, compute_correlations, detect_industry,
@@ -35,7 +38,10 @@ User = get_user_model()
 
 # Constants
 ALLOWED_FILE_TYPES = ['csv', 'xlsx', 'json']
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+# Techo absoluto del sistema (independiente del plan). El límite real por
+# plan (más restrictivo) se aplica en quotas.check_storage_quota, que corre
+# antes de esta validación.
+MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
@@ -62,12 +68,23 @@ class MemoryManager:
     MAX_DATASETS = 3
     MAX_CONTEXT_TOTAL_CHARS = 12000
 
-    def _get_session(self, session_id: str) -> ChatSession:
-        session, _ = ChatSession.objects.get_or_create(session_id=session_id)
+    def _get_session(self, session_id: str, user) -> ChatSession:
+        """
+        Obtiene o crea la sesión de chat, siempre escopada al usuario
+        autenticado. `user` es obligatorio: ya no existen sesiones
+        anónimas/globales (esa era la causa de que todos los usuarios
+        compartieran la misma conversación por defecto).
+        """
+        workspace = getattr(user, 'workspace', None)
+        session, _ = ChatSession.objects.get_or_create(
+            session_id=session_id,
+            user=user,
+            defaults={'workspace': workspace},
+        )
         return session
 
-    def add_message(self, session_id: str, role: str, content: str):
-        session = self._get_session(session_id)
+    def add_message(self, session_id: str, role: str, content: str, user):
+        session = self._get_session(session_id, user)
         ChatMessage.objects.create(session=session, role=role, content=content)
         if role == "user" and (not session.title or session.title in ["Nueva sesión", "Nuevo chat"]):
             session.title = content[:40] if len(content) > 40 else content
@@ -94,8 +111,8 @@ class MemoryManager:
         session.rolling_summary = session.rolling_summary[-self.MAX_SUMMARY_CHARS:]
         session.save(update_fields=["rolling_summary"])
 
-    def store_dataset_context(self, session_id: str, context: dict):
-        session = self._get_session(session_id)
+    def store_dataset_context(self, session_id: str, context: dict, user):
+        session = self._get_session(session_id, user)
         session.dataset_context = context or {}
         dataset_history = list(session.dataset_history or [])
         file_name = context.get("file_name", "dataset")
@@ -109,12 +126,12 @@ class MemoryManager:
         session.dataset_history = dataset_history[-self.MAX_DATASETS:]
         session.save(update_fields=["dataset_context", "dataset_history", "updated_at"])
 
-    def get_dataset_context(self, session_id: str) -> dict:
-        session = self._get_session(session_id)
+    def get_dataset_context(self, session_id: str, user) -> dict:
+        session = self._get_session(session_id, user)
         return session.dataset_context or {}
 
-    def get_history(self, session_id: str, question: str = "") -> str:
-        session = self._get_session(session_id)
+    def get_history(self, session_id: str, user, question: str = "") -> str:
+        session = self._get_session(session_id, user)
         rolling = session.rolling_summary or ""
         messages = list(session.messages.all()[:20])
         history_parts = []
@@ -239,152 +256,182 @@ def get_analytics_context(file_obj, filename):
     }
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def analyze_endpoint(request):
-    if request.method == "POST":
-        if 'file' not in request.FILES:
-            return JsonResponse({"error": "No se ha subido ningún archivo"}, status=400)
-        file = request.FILES['file']
-        session_id = request.POST.get('session_id', 'default')
-        session = memory._get_session(session_id)
-        session.messages.all().delete()
-        memory.add_message(session_id, "user", f"Archivo cargado: {file.name}")
-        try:
-            suffix = file.name.lower().split('.')[-1]
-            if suffix not in ['csv', 'xlsx', 'xls', 'pdf', 'docx', 'doc']:
-                return JsonResponse({"status": "rag_only", "file_name": file.name, "response": "Archivo cargado."})
-            if suffix in ['pdf', 'docx', 'doc']:
-                response_text = f"El archivo '{file.name}' fue cargado correctamente. El análisis detallado está disponible para archivos CSV y Excel. Para este tipo de archivo ({suffix.upper()}), por ahora solo se almacena."
-                memory.add_message(session_id, "assistant", response_text)
-                return JsonResponse({"status": "rag_only", "file_name": file.name, "response": response_text})
-            file.seek(0)
-            context = get_analytics_context(file, file.name)
-            safe_context = make_json_safe(context)
-            memory.store_dataset_context(session_id, safe_context)
-            ai_report = generate_ai_report(safe_context)
-            score = safe_context.get('health', {}).get('health_score', 0)
-            message_parts = [
-                f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\nHe detectado que tu negocio pertenece al sector de {safe_context.get('industry', 'General / Negocios')}.\nAnalicé un total de {safe_context.get('summary', {}).get('rows', 0)} filas de información.\nEn cuanto a la salud de tus datos, les doy una puntuación de {score:.0f} sobre 100 (un nivel de riesgo {safe_context.get('health', {}).get('risk_level', 'desconocido').lower()})."
-            ]
-            if ai_report:
-                message_parts.append(f"\n\n📝 Resumen Ejecutivo para ti:\n{ai_report}")
-            full_response = "\n".join(message_parts)
-            memory.add_message(session_id, "assistant", full_response)
-            safe_context["response"] = full_response
-            return JsonResponse(safe_context)
-        except Exception as e:
-            err = f"Error al analizar el archivo: {str(e)}"
-            print(f"[ERROR] CRASH EN ANALISIS: {err}")
-            traceback.print_exc()
-            return JsonResponse({"error": err, "exception": type(e).__name__, "detail": repr(e), "response": err}, status=500)
-    return JsonResponse({"error": "Se requiere una petición POST"}, status=400)
+    if 'file' not in request.FILES:
+        return Response({"error": "No se ha subido ningún archivo"}, status=status.HTTP_400_BAD_REQUEST)
+    file = request.FILES['file']
+    session_id = request.POST.get('session_id', 'default')
+    user = request.user
+
+    try:
+        quotas.check_message_quota(user)
+    except quotas.QuotaExceeded as e:
+        return Response({"error": e.message, "code": e.code}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    session = memory._get_session(session_id, user)
+    session.messages.all().delete()
+    memory.add_message(session_id, "user", f"Archivo cargado: {file.name}", user)
+    try:
+        suffix = file.name.lower().split('.')[-1]
+        if suffix not in ['csv', 'xlsx', 'xls', 'pdf', 'docx', 'doc']:
+            return Response({"status": "rag_only", "file_name": file.name, "response": "Archivo cargado."})
+        if suffix == 'docx':
+            # Antes: los .docx solo se guardaban sin extraer contenido, y el
+            # modo "rag_document" de ai/llm.py (que resume un documento para
+            # poder chatear sobre él) nunca llegaba a activarse porque nadie
+            # generaba ese contexto. Ahora sí se extrae el texto y se guarda.
+            try:
+                file.seek(0)
+                document = DocxDocument(file)
+                full_text = "\n".join(p.text for p in document.paragraphs if p.text.strip())
+                if not full_text.strip():
+                    raise ValueError("El documento no contiene texto extraíble (¿está escaneado o vacío?).")
+                rag_context = {"file_name": file.name, "mode": "rag_document", "content": full_text}
+                memory.store_dataset_context(session_id, rag_context, user)
+                response_text = (
+                    f"Leí el documento '{file.name}' ({len(full_text)} caracteres de texto). "
+                    "Ya puedes hacerme preguntas sobre su contenido."
+                )
+                memory.add_message(session_id, "assistant", response_text, user)
+                quotas.increment_message_usage(user)
+                return Response({"status": "rag_ready", "file_name": file.name, "response": response_text})
+            except Exception as e:
+                response_text = (
+                    f"El archivo '{file.name}' se guardó, pero no pude leer su contenido "
+                    f"({str(e)}), así que no podré responder preguntas sobre él."
+                )
+                memory.add_message(session_id, "assistant", response_text, user)
+                return Response({"status": "rag_only", "file_name": file.name, "response": response_text})
+        if suffix in ['pdf', 'doc']:
+            # La lectura de contenido para .pdf y .doc (legado) todavía no
+            # está implementada (falta una librería de extracción de texto
+            # en requirements.txt, p. ej. pdfplumber/PyMuPDF). Por ahora se
+            # informa honestamente en vez de fingir que sí se analizó.
+            response_text = f"El archivo '{file.name}' fue cargado correctamente. El análisis detallado está disponible para archivos CSV, Excel y Word (.docx). Para este tipo de archivo ({suffix.upper()}), por ahora solo se almacena; la lectura de su contenido aún no está implementada."
+            memory.add_message(session_id, "assistant", response_text, user)
+            return Response({"status": "rag_only", "file_name": file.name, "response": response_text})
+        file.seek(0)
+        context = get_analytics_context(file, file.name)
+        safe_context = make_json_safe(context)
+        memory.store_dataset_context(session_id, safe_context, user)
+        ai_report = generate_ai_report(safe_context)
+        score = safe_context.get('health', {}).get('health_score', 0)
+        message_parts = [
+            f"¡Listo! Ya terminé de revisar tu archivo '{safe_context['file_name']}'.\n\nHe detectado que tu negocio pertenece al sector de {safe_context.get('industry', 'General / Negocios')}.\nAnalicé un total de {safe_context.get('summary', {}).get('rows', 0)} filas de información.\nEn cuanto a la salud de tus datos, les doy una puntuación de {score:.0f} sobre 100 (un nivel de riesgo {safe_context.get('health', {}).get('risk_level', 'desconocido').lower()})."
+        ]
+        if ai_report:
+            message_parts.append(f"\n\n📝 Resumen Ejecutivo para ti:\n{ai_report}")
+        full_response = "\n".join(message_parts)
+        memory.add_message(session_id, "assistant", full_response, user)
+        quotas.increment_message_usage(user)
+        safe_context["response"] = full_response
+        return Response(safe_context)
+    except Exception as e:
+        err = f"Error al analizar el archivo: {str(e)}"
+        print(f"[ERROR] CRASH EN ANALISIS: {err}")
+        traceback.print_exc()
+        return Response({"error": err, "exception": type(e).__name__, "detail": repr(e), "response": err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def chat_endpoint(request):
-    if request.method == "POST":
+    try:
+        data = request.data
+        message = (data.get("message", "") or "").strip()
+        session_id = data.get("session_id", "default")
+        user = request.user
+        if not message:
+            return Response({"error": "El mensaje no puede estar vacío."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            data = json.load(request)
-            message = (data.get("message", "") or "").strip()
-            session_id = data.get("session_id", "default")
-            if not message:
-                return JsonResponse({"error": "El mensaje no puede estar vacío."}, status=400)
-            memory.add_message(session_id, "user", message)
-            history = memory.get_history(session_id, message)
-            context = memory.get_dataset_context(session_id)
-            user_info = None
-            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-            if auth_header.startswith('Bearer '):
-                try:
-                    import jwt as pyjwt
-                    token = auth_header.split(' ')[1]
-                    payload = pyjwt.decode(token, options={"verify_signature": False})
-                    user_id = payload.get('user_id')
-                    if user_id:
-                        from django.contrib.auth import get_user_model
-                        User = get_user_model()
-                        user = User.objects.get(id=user_id)
-                        user_info = {
-                            "name": getattr(user, 'first_name', '') or user.email.split('@')[0],
-                            "email": user.email,
-                        }
-                except Exception:
-                    pass
-            response_text = chat_with_data(message, context, history, user_info=user_info)
-            memory.add_message(session_id, "assistant", response_text)
-            return JsonResponse({"response": response_text})
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({"error": "Se requiere una petición POST"}, status=400)
+            quotas.check_message_quota(user)
+        except quotas.QuotaExceeded as e:
+            return Response({"error": e.message, "code": e.code}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        memory.add_message(session_id, "user", message, user)
+        history = memory.get_history(session_id, user, message)
+        context = memory.get_dataset_context(session_id, user)
+        user_info = {
+            "name": getattr(user, 'first_name', '') or user.email.split('@')[0],
+            "email": user.email,
+        }
+        response_text = chat_with_data(message, context, history, user_info=user_info)
+        memory.add_message(session_id, "assistant", response_text, user)
+        quotas.increment_message_usage(user)
+        return Response({"response": response_text})
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_sessions(request):
-    if request.method == "GET":
-        sessions = ChatSession.objects.all().order_by('-updated_at')
-        session_data = [
-            {
-                "session_id": s.session_id,
-                "title": s.title,
-                "updated_at": s.updated_at.isoformat(),
-            }
-            for s in sessions
-        ]
-        return JsonResponse({"sessions": session_data})
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    # Antes: devolvía TODAS las sesiones de TODOS los usuarios sin filtrar.
+    sessions = ChatSession.objects.filter(user=request.user).order_by('-updated_at')
+    session_data = [
+        {
+            "session_id": s.session_id,
+            "title": s.title,
+            "updated_at": s.updated_at.isoformat(),
+        }
+        for s in sessions
+    ]
+    return Response({"sessions": session_data})
 
 
-@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_session_history(request, session_id):
-    if request.method == "GET":
-        session, _ = ChatSession.objects.get_or_create(session_id=session_id)
-        messages = session.messages.filter(role__in=['user', 'assistant']).order_by('created_at')
-        message_data = [
-            {
-                "role": m.role,
-                "content": m.content,
-                "created_at": m.created_at.isoformat(),
-            }
-            for m in messages
-        ]
-        return JsonResponse({
-            "session_id": session.session_id,
-            "title": session.title,
-            "dataset_context": session.dataset_context,
-            "messages": message_data,
-        })
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    session, _ = ChatSession.objects.get_or_create(
+        session_id=session_id, user=request.user,
+        defaults={'workspace': getattr(request.user, 'workspace', None)},
+    )
+    messages = session.messages.filter(role__in=['user', 'assistant']).order_by('created_at')
+    message_data = [
+        {
+            "role": m.role,
+            "content": m.content,
+            "created_at": m.created_at.isoformat(),
+        }
+        for m in messages
+    ]
+    return Response({
+        "session_id": session.session_id,
+        "title": session.title,
+        "dataset_context": session.dataset_context,
+        "messages": message_data,
+    })
 
 
-@csrf_exempt
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def rename_session(request, session_id):
-    if request.method == "PUT":
-        try:
-            data = json.load(request)
-            new_title = data.get("title", "").strip()
-            if not new_title:
-                return JsonResponse({"error": "El título no puede estar vacío"}, status=400)
-            session = ChatSession.objects.get(session_id=session_id)
-            session.title = new_title
-            session.save(update_fields=["title", "updated_at"])
-            return JsonResponse({"status": "ok", "title": session.title})
-        except ChatSession.DoesNotExist:
-            return JsonResponse({"error": "Sesión no encontrada"}, status=404)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        new_title = (request.data.get("title", "") or "").strip()
+        if not new_title:
+            return Response({"error": "El título no puede estar vacío"}, status=status.HTTP_400_BAD_REQUEST)
+        session = ChatSession.objects.get(session_id=session_id, user=request.user)
+        session.title = new_title
+        session.save(update_fields=["title", "updated_at"])
+        return Response({"status": "ok", "title": session.title})
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@csrf_exempt
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_session(request, session_id):
-    if request.method == "DELETE":
-        try:
-            session = ChatSession.objects.get(session_id=session_id)
-            session.delete()
-            return JsonResponse({"status": "ok", "message": "Sesión eliminada correctamente"})
-        except ChatSession.DoesNotExist:
-            return JsonResponse({"error": "Sesión no encontrada"}, status=404)
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        session = ChatSession.objects.get(session_id=session_id, user=request.user)
+        session.delete()
+        return Response({"status": "ok", "message": "Sesión eliminada correctamente"})
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET', 'PUT'])
@@ -424,6 +471,46 @@ def user_workspace(request):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_session_report_pdf(request, session_id):
+    """
+    Módulo 4: genera y descarga un PDF ejecutivo con el análisis del
+    dataset activo en la sesión indicada. Antes de este cambio no existía
+    ningún endpoint de exportación real: el botón del frontend era solo
+    texto decorativo.
+    """
+    try:
+        session = ChatSession.objects.get(session_id=session_id, user=request.user)
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Sesión no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        user_name = getattr(request.user, 'first_name', '') or request.user.email
+        pdf_bytes = reports.generate_pdf_report(session.dataset_context, generated_for=user_name)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"error": f"No se pudo generar el PDF: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    file_name = session.dataset_context.get("file_name", "dataset")
+    safe_name = "".join(c for c in file_name.rsplit(".", 1)[0] if c.isalnum() or c in (" ", "-", "_")).strip() or "reporte"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="reporte_{safe_name}.pdf"'
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def workspace_usage(request):
+    """Uso actual vs límites del plan: almacenamiento, datasets y mensajes/día."""
+    workspace, _ = Workspace.objects.get_or_create(
+        owner=request.user, defaults={'name': f"Espacio de trabajo de {request.user.email}"}
+    )
+    return Response(quotas.workspace_usage_summary(workspace))
 
 
 # Dataset Endpoints
@@ -476,7 +563,14 @@ def dataset_list_create(request):
             return Response({"error": "No se ha subido ningún archivo"}, status=status.HTTP_400_BAD_REQUEST)
         
         file = request.FILES['file']
-        
+
+        # Cuotas del plan: tamaño máximo, almacenamiento total y cantidad de datasets
+        try:
+            quotas.check_storage_quota(workspace, file.size)
+            quotas.check_dataset_count_quota(workspace)
+        except quotas.QuotaExceeded as e:
+            return Response({"error": e.message, "code": e.code}, status=status.HTTP_402_PAYMENT_REQUIRED)
+
         # Validar archivo
         is_valid, errors, file_type = validate_file(file)
         file.seek(0)

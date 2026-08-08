@@ -1,7 +1,20 @@
 from django.contrib import admin
 from django.urls import include, path
+from django.http import JsonResponse
+from .status_view import api_status
+
+
+def api_404(request, exception=None):
+    return JsonResponse(
+        {"error": "Ruta no encontrada.", "path": request.path},
+        status=404,
+    )
+
+
+handler404 = api_404
 
 urlpatterns = [
+    path('', api_status, name='api_status'),
     path('admin/', admin.site.urls),
     path('api/', include('chat.urls')),
     path('api/auth/', include('dj_rest_auth.urls')),

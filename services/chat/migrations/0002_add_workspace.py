@@ -1,7 +1,13 @@
+# CORRECCIÓN (Módulo 1): esta migración originalmente volvía a crear el
+# modelo Workspace y el campo ChatSession.workspace, pero 0001_initial ya
+# los creaba. Eso hacía que `python manage.py migrate` fallara con
+# "table chat_workspace already exists" en cualquier base de datos nueva,
+# es decir, el proyecto no podía instalarse desde cero.
+#
+# Se deja como no-op (sin operaciones) para no romper la cadena de
+# dependencias de las migraciones 0003/0004/0005 que ya dependen de esta.
 
-import django.db.models.deletion
-from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -9,45 +15,4 @@ class Migration(migrations.Migration):
         ("chat", "0001_initial"),
     ]
 
-    operations = [
-        migrations.CreateModel(
-            name="Workspace",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("name", models.CharField(max_length=200)),
-                ("description", models.TextField(blank=True, null=True)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
-                (
-                    "owner",
-                    models.OneToOneField(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="workspace",
-                        to=settings.AUTH_USER_MODEL,
-                    ),
-                ),
-            ],
-            options={
-                "ordering": ["-created_at"],
-            },
-        ),
-        migrations.AddField(
-            model_name="chatsession",
-            name="workspace",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="chat_sessions",
-                to="chat.workspace",
-            ),
-        ),
-    ]
+    operations = []

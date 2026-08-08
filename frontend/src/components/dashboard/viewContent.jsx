@@ -569,6 +569,8 @@ export const VIEW_CONTENT = {
     const { refreshAccessToken } = useAuth();
     const [context, setContext] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState("");
 
     useEffect(() => {
       const fetchContext = async () => {
@@ -588,6 +590,33 @@ export const VIEW_CONTENT = {
       };
       fetchContext();
     }, [refreshAccessToken]);
+
+    const handleExportPdf = async () => {
+      setExporting(true);
+      setExportError("");
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      try {
+        const headers = await getAuthHeaders(refreshAccessToken);
+        const res = await fetch(`${API_BASE}/api/sessions/default/report/pdf/`, { headers });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error || `Error ${res.status} al generar el reporte`);
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_${(context?.file_name || 'dataset').replace(/\.[^/.]+$/, '')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (e) {
+        setExportError(e.message || "No se pudo generar el reporte.");
+      } finally {
+        setExporting(false);
+      }
+    };
 
     if (loading) return <div className="text-white/60 font-mono text-xs p-4">Cargando reporte IA...</div>;
     if (!context) return <div className="text-white/60 font-mono text-xs p-4">No hay datos para reportar. Sube un dataset primero.</div>;
@@ -663,10 +692,17 @@ export const VIEW_CONTENT = {
               Genera un informe PDF completo con resumen ejecutivo, análisis de riesgos,
               oportunidades y recomendaciones basadas en IA.
             </p>
-            <button className="w-full py-3 rounded-lg bg-nura-purple/20 border border-nura-purple/30 text-nura-purple hover:bg-nura-purple/30 transition-all text-[11px] flex items-center justify-center gap-2">
+            <button
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="w-full py-3 rounded-lg bg-nura-purple/20 border border-nura-purple/30 text-nura-purple hover:bg-nura-purple/30 transition-all text-[11px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Download className="w-4 h-4" />
-              exportar_reporte_pdf()
+              {exporting ? "Generando PDF..." : "Exportar reporte PDF"}
             </button>
+            {exportError && (
+              <p className="text-red-400 text-[10px]">{exportError}</p>
+            )}
           </div>
         </div>
       </div>
